@@ -47,4 +47,10 @@ extern int normalDevices[N_INTERRUPT_LINES - 4][DEV_PER_INT];
  */
 extern int terminals[DEV_PER_INT][2];
 
+void initFirstPCB(memaddr firstPcb);
+void initVars();
+void initHandler(memaddr addr, memaddr handler);
+void initDataStructures();
+void init(memaddr firstPcb);
+int init2(memaddr firstPcb);
 #endif // MAIN_H

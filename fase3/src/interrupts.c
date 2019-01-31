@@ -155,19 +155,19 @@ int handleTimer()
     switch (lastTimerCause)
     {
         case PSEUDOCLOCK:
-		tprint("\npseudoclock\n");
+		//tprint("\npseudoclock\n");
             pseudoClockTicks++;
             while (pseudoClockSem < 0)
                 V(&pseudoClockSem,(state_t *)INT_OLDAREA);
             break;
         case TIMESLICE:
-		tprint("\ntime slice\n");
+		//tprint("\ntime slice\n");
             if (readyPcbs > 0)
                 ret = 1;
             break;
         case AGING:
             {
-		tprint("\naging\n");
+		//tprint("\naging\n");
                 agingTicks++;
                 if (readyPcbs > 0)
                 {

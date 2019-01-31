@@ -28,10 +28,10 @@ timcause_t lastTimerCause; /* Last timer interrupt's cause */
 
 extern void test();
 
-void initFirstPCB() {
+void initFirstPCB(memaddr firstPcb) {
     state_t p_s = {
         .sp = RAM_TOP - FRAMESIZE,
-        .pc = (memaddr) test,
+        .pc = (memaddr) firstPcb,
         .cpsr = STATUS_ALL_INT_ENABLE(STATUS_SYS_MODE),     /* kernel mode */
         .CP15_Control = CP15_CONTROL_NULL                   /* VM disabled */
     };
@@ -75,7 +75,7 @@ void initDataStructures() {
     initASL();
 }
 
-void init() {
+void init(memaddr firstPcb) {
     /* init NEW areas for interrupts and traps */
     initHandler(INT_NEWAREA, (memaddr) interruptHandler);
     initHandler(TLB_NEWAREA, (memaddr) tlbHandler);
@@ -88,12 +88,12 @@ void init() {
     /* init nucleus variables */
     initVars();
 
-    initFirstPCB();
+    initFirstPCB(firstPcb);
 }
 
 
-int main() {
-    init();
+int init2(memaddr firstPcb) {
+    init(firstPcb);
 //tprint("in main");
     clockStartLO = getTODLO();
     clockStartHI = getTODHI();
