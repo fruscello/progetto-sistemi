@@ -5,5 +5,6 @@
 #include <arch.h>
 #include <pcb.h>
 
+void init3();
 
 #endif // MAIN_H

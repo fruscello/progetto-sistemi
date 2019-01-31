@@ -13,8 +13,13 @@
 
 extern void test();
 
+void init3(){
+	tprint("in init3\n");
+	HALT();
+}
+
 void main() {
-	init2((memaddr)test);
-	tprint("in main");
+	init2((memaddr)init3);
+	tprint("in main\n");
 	HALT();
 }
