@@ -13,7 +13,7 @@ INCLUDE=include
 # name of the executable
 ONAME=p2test
 # modules of the project
-MODULES=list tree semaphore pcb p2test scheduler interrupts syscall main init3
+MODULES=list tree semaphore pcb p2test scheduler interrupts syscall main init3 highsyscall
 # adds a prefix with the name of the build dir to the names of the modules
 OBJ=$(patsubst %,$(BUILD)/%.o,$(MODULES))
 # global depencencies
