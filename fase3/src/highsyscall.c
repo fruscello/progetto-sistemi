@@ -1,7 +1,12 @@
 #include <highsyscall.h>
 #include <uARMtypes.h>
 #include <uARMconst.h>
+#include <libuarm.h>
+#include <pcb.h>
 #include <arch.h>
+#include <types.h>
+#include <syscall.h>
+
 void readTerminal(char *virtAddr){
 
 }
@@ -24,15 +29,19 @@ void diskPut(int *blockAddr, int diskNo, int sectNo){
 	int *DATA0=blockAddr;
 	//getDeviceData0(INT_DISK, diskNo, &data0);
 	
-	
-	int COMMAND=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
-	int bitmap=DEV_OVERWRITE_COMMAND;
-	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);
-	//fai una P
-	
-	COMMAND=(((head_num<<8)|sect_num)<<8)|DEV_DISK_C_READBLK;
-	bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
-	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,(unsigned int) DATA0, 0,bitmap);
+	SYSCALL(SEMP, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0, 0);		//la v va fatta nell'handler
+		is_seeking_cyl[diskNo]=1;
+		int COMMAND=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
+		int bitmap=DEV_OVERWRITE_COMMAND;
+		setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);
+		//fai una P
+		
+		SYSCALL(SEMP, (memaddr)&disk_op_rdy[diskNo], 0, 0);			//la v va fatta nell'handler
+			COMMAND=(((head_num<<8)|sect_num)<<8)|DEV_DISK_C_READBLK;
+			bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
+			setDeviceRegister(INT_DISK,diskNo,0,COMMAND,(unsigned int) DATA0, 0,bitmap);
+		
+	//SYSCALL(SEMV, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0, 0);
 	//fai un'altra P ma con un altro semaforo magari
 }
 void diskGet(int *blockAddr, int diskNo, int sectNo){
@@ -44,7 +53,19 @@ void writePrinter(char *virtAddr, int len){
 void terminate(){
 
 }
-
+void initDevices(){
+	int i,j;
+	for(j=0;j<DEV_MUTEX_LEN;j++){
+		for(i=0;i<DEV_NUM;i++){
+			device_mutex[i][j]=1;
+		}
+	}
+	for(i=0;i<DEV_NUM;i++){
+		disk_op_rdy[i]=0;
+		is_seeking_cyl[i]=0;
+	}
+	initDisk();
+}
 void initDisk(){
 	int i;
 	int DATA1;
