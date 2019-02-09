@@ -27,6 +27,10 @@ void dispatch(state_t *to_save)
      *          else, wait for an interrupt
      */
 	
+    /*if (runningPcb != NULL){
+        insertInReady(runningPcb,to_save);
+	runningPcb=NULL;
+    }*/
     if (readyPcbs > 0)
     {
         pcb_t *p;
@@ -38,9 +42,7 @@ void dispatch(state_t *to_save)
         updateTimer();  /* Load the new timer */
         freezeLastTime(p); /* Freezing the lasttime in pcb for calculating next user time */
         LDST(&runningPcb->p_s); /* load the new PCB */
-    }
-    else
-    {
+    }else{
         /* If there are no more processes in the ready queue and no active ones the system has done its job and needs to shut down */
         if (activePcbs == 0 && softBlockedPcbs == 0){ 
             tprint("Shutting down\n");    
@@ -55,7 +57,7 @@ void dispatch(state_t *to_save)
         }
         /* If there are no more processes in the ready queue and no processes are soft-blocked then the system is probably in deadlock */
         else if (activePcbs!=0){
-            tprint("Deadlock detected, panicking (MESSAGE BY KERNEL, NOT P2TEST)");    
+            tprint("Deadlock detected, panicking (MESSAGE BY KERNEL, NOT P2TEST)!");    
             PANIC();
         }
     }
@@ -95,10 +97,9 @@ void restoreRunningProcess(state_t *oldarea)
 {
     if (oldarea == (state_t *)INT_OLDAREA)
         oldarea->pc -= 4; /* Restoring the right return address*/
-    
+    //else tprint("in restoreRunningProcess\n");
     updateTimer();
     freezeLastTime(runningPcb); /* Freezing the lasttime in pcb for calculating next user time */
-    //tprint("restoreRunningProcess\n");
     LDST(oldarea);
 }
 
@@ -151,7 +152,6 @@ void userTimeAccounting(unsigned int TOD_Hi, unsigned int TOD_Low) {
 /* Facility for accounting new user time */
 void kernelTimeAccounting(unsigned int TOD_Hi, unsigned int TOD_Low, pcb_t* process) {
     cpu_t newKernelTime, nowTOD;
-
     /* If no process has no account time, do nothing*/
     if (process == NULL) return;
 

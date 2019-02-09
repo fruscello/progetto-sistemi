@@ -80,6 +80,7 @@ void pgmTrapHandler();
 /* Handler for tlb */
 void tlbHandler();
 
+
 /* Handler for Syscalls/breakpoints */
 void sysHandler();
 

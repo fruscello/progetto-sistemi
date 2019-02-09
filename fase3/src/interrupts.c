@@ -4,6 +4,7 @@
 #include <libuarm.h>
 #include <scheduler.h>
 #include <syscall.h>
+#include <highsyscall.h>
 #include <semaphore.h>
 #include <list.h>
 #include <pcb.h>
@@ -33,7 +34,8 @@ void interruptHandler()
     unsigned int cause = ((state_t *) INT_OLDAREA)->CP15_Cause; /* interrupt cause (CP15_Cause) */
     int dispatchFlag = 0; /* 1 if the interrupt cause was the timer and a dispatch is necessary, 0 otherwise */
     pcb_t *p = NULL;    /* Will hold the process that will be "charged" with the spent kernel time */
-    int is_tprint=0;
+    int still_soft_blocked=0;
+    int debug=0;
     userTimeAccounting(( (state_t *) INT_OLDAREA)->TOD_Hi, ( (state_t *) INT_OLDAREA)->TOD_Low); /* Now I account user time from the last moment I calculated it */
 
     if (CAUSE_IP_GET(cause,INT_TIMER)){
@@ -62,6 +64,11 @@ void interruptHandler()
                Single semaphore devices are handled in a uniform way
              */
             case INT_DISK:
+		tprint("in INT_DISK\n");
+		still_soft_blocked=1;
+		diskNextStep(0);
+		debug=1;
+		break;
             case INT_TAPE:
             case INT_UNUSED:    /* in uARMconst.h this is the definition of the Network interrupt line */
             case INT_PRINTER:
@@ -96,7 +103,7 @@ void interruptHandler()
                     	//tprint("No device blocked on semaphore (MESSAGE BY KERNEL, NOT P2TEST)\n");
                     	//PANIC();
 			//dispatch(NULL);
-		    	is_tprint=1;			//se uno fa tprint in questo modo non dovrebbe crashare
+		    	still_soft_blocked=1;			//se uno fa tprint in questo modo non dovrebbe crashare
                 }else
 		        if (which == TRANSM) /* Returning the status of the device */
 		            p->p_s.a1 = deviceRegister->term.transm_status; 
@@ -110,7 +117,7 @@ void interruptHandler()
 		        break;
 		
         }
-	if(!is_tprint){
+	if(!still_soft_blocked){
 		p->waitingOnIO = 0;
 		softBlockedPcbs--;
 		activePcbs++;
@@ -126,10 +133,12 @@ void interruptHandler()
 	tprint("\ndispatch flag\n");
 	dispatch((state_t*)INT_OLDAREA);
     }else if (runningPcb != NULL){ // Some process was running when the interrupt occurred 
-	//tprint("runningPcb!=null\n");
+	if(debug)
+	tprint("runningPcb!=null\n");
 	restoreRunningProcess((state_t*)INT_OLDAREA);
     }else{
-	//tprint("else\n");
+	if(debug)
+	tprint("else\n");
 	dispatch(NULL);
     }
 }

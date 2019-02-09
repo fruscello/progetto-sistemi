@@ -9,6 +9,7 @@
 #include <main.h>
 #include <types.h>
 #include <interrupts.h>
+#include <init3.h>
 
 
 void P(int *semaddr)
@@ -22,7 +23,7 @@ void P(int *semaddr)
      */
     (*semaddr)--;
     if(*semaddr < 0)
-    {
+    {	tprint("semaddr < 0\n");
         pcb_t *p;   /* holds the former running pcb pointer*/
         p = suspend();
         p->p_s = *((state_t *) SYSBK_OLDAREA); /*   saving the process' state in its pcb. The P
@@ -142,6 +143,7 @@ int terminateProcess(void * pid){
 int specifyTrapHandler(int type, state_t *old, state_t *new) {
   switch (type) {
     case SPECSYSBP:
+	tprint("SPECSYSBP\n");
         /* If currentProcess' areas are clean */
         if (runningPcb->sysbk_new == NULL && runningPcb->sysbk_old == NULL) {
             /* set areas*/
@@ -155,19 +157,25 @@ int specifyTrapHandler(int type, state_t *old, state_t *new) {
         break;
 
     case SPECTLB:
+	tprint("SPECTLB\n");
         /* if currentProcess' areas are clean */
         if (runningPcb->tlb_new == NULL && runningPcb->tlb_old == NULL) {
             /* set areas */
             runningPcb->tlb_new = new;
             runningPcb->tlb_old = old;
+	tprint("in if\n");
+	/*if(activePcbs==0)
+		tprint("syscall(inizio): activePcbs == 0\n");*/
         }
         /* else if are not clean are already set, failure! Return -1 */
         else {
+		tprint("in else\n");
             return -1;
         }
         break;
 
     case SPECPGMT:
+	tprint("SPECPGMT\n");
         /* if currentProcess' areas are clean */
         if (runningPcb->pgmtrap_new == NULL && runningPcb->pgmtrap_old == NULL) {
             /* set areas */
@@ -255,7 +263,7 @@ void getDeviceFromRegister(int * intLine , int * devNo, int * termIO, unsigned i
  */
 
 unsigned int ioOperation(unsigned int command, unsigned int *comm_device_register){
-
+    tprint("ioOperation\n");
     int intLine,devNo,termIO;
     getDeviceFromRegister(&intLine ,&devNo, &termIO, comm_device_register);
     *comm_device_register=command;
@@ -337,7 +345,10 @@ void tlbHandler(){
     }
 }
 
+
+
 void sysHandler(){
+	tprint("inizio sysHandler\n");
     /*
         * Gets the newarea and checks the cause of the exception
         *   If Breakpoint:
@@ -358,9 +369,9 @@ void sysHandler(){
         *		else it calls dispatch 
         */
 
+    
     state_t *userRegisters = (state_t*) SYSBK_OLDAREA;
     pcb_t *processThrowing = runningPcb;
-
     int passupFlag=0; /* Used to differentiate the exit point, 0 is false 1 is true */
     state_t *passupHandler=NULL; /* Used to differentiate the exit point, 0 is false 1 is true */
 
@@ -406,7 +417,9 @@ void sysHandler(){
 
                 case SEMP:
                     /* a2 should contain the physical address of the semaphore to be P’ed */
+			tprint("int SEMP\n");
                     P((int*) userRegisters->a2);
+			tprint("fine SEMP\n");
                     break;
 
                 case SEMV:
@@ -419,6 +432,7 @@ void sysHandler(){
                      *  a2 should contain which handler it will modify, a3 should contain a pointer to the old state, and a4 a pointer to the new state.
                      *  if the syscall returns error means that SYS5 was called more than once on the process, its not allowed so it should be treatead as a SYS2 instead
                      */
+		    tprint("SPECHDL\n");
                     succesful=specifyTrapHandler((int)userRegisters->a2, (state_t *)userRegisters->a3, (state_t *)userRegisters->a4);
                     if (succesful==-1) terminateProcess(runningPcb);
                     break;
@@ -494,7 +508,7 @@ void sysHandler(){
     else{
         kernelTimeAccounting(((state_t *) SYSBK_OLDAREA) ->TOD_Hi, ((state_t *) SYSBK_OLDAREA)
                 ->TOD_Low,processThrowing);
-	    if(runningPcb!=NULL){ restoreRunningProcess(userRegisters); }
-	    else{dispatch(NULL);}
+	    if(runningPcb!=NULL){ /*tprint("running != NULL\n");*/restoreRunningProcess(userRegisters); }
+	    else{dispatch(NULL);}//dispatch(NULL);
     }
 }
