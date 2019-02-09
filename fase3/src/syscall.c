@@ -348,7 +348,7 @@ void tlbHandler(){
 
 
 void sysHandler(){
-	tprint("inizio sysHandler\n");
+	//tprint("inizio sysHandler\n");
     /*
         * Gets the newarea and checks the cause of the exception
         *   If Breakpoint:

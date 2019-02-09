@@ -17,7 +17,7 @@ void schedule(state_t *old){
 	LDST(old);
 }
 void highSysHandler(){
-	tprint("in highSysHandler!\n");
+	//tprint("in highSysHandler!\n");
 	state_t old_sys;
 	old_sys=new_old_state_t[2];
 	/*old_sys.a1=new_old_state_t[2].a1;
@@ -81,7 +81,8 @@ void highSysHandler(){
 			break;
 	}
 	
-	
 	schedule(&old_sys);
+	//schedule(&new_old_state_t[2]);
+	//WAIT();
 	tprint("scheduler finito\n");
 }

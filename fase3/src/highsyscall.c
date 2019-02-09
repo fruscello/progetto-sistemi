@@ -41,7 +41,7 @@ void diskPut(int *blockAddr, int diskNo, int sectNo){
 	//int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
 	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);
 	
-	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|DEV_DISK_C_READBLK;
+	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|DEV_DISK_C_WRITEBLK;
 	
 	uproc[diskNo]=runningPcb;
 	
@@ -104,12 +104,13 @@ void setDeviceRegister(int IntlineNo , int DevNo,unsigned int STATUS,unsigned in
 	getDeviceRegister(IntlineNo, DevNo, &device);
 	if(bitmap&DEV_OVERWRITE_STATUS)
 		device[0]=STATUS;
-	if(bitmap&DEV_OVERWRITE_COMMAND)
-		device[1]=COMMAND;
 	if(bitmap&DEV_OVERWRITE_DATA0)
 		device[2]=DATA0;
 	if(bitmap&DEV_OVERWRITE_DATA1)
 		device[3]=DATA1;
+	//va messo per ultimo poiche appena lo metti parte
+	if(bitmap&DEV_OVERWRITE_COMMAND)
+		device[1]=COMMAND;
 }
 void getDeviceStatus(int IntlineNo , int DevNo, int* STATUS){
 	unsigned int *device;
@@ -136,14 +137,14 @@ void diskNextStep(int deviceNo){
 		int COMMAND=device_operation[deviceNo][DISK_MUTEX];
 		int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
 		setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[DEV_NUM],0,bitmap);
-		while(1){
-			//tprint("pippo\n");
-		}
+		//while(1){}
 		//tprint("fine diskNextStep (1)\n");
 	}else{
-		//is_seeking_cyl[deviceNo]=0;
+		//is_seeking_cyl[deviceNo]=1;
 		tprint("in diskNextStep (2)\n");
 		unsoftblock(uproc[deviceNo]);
+		int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
+		setDeviceRegister(INT_DISK,deviceNo,0,0,0,0,bitmap);
 		SYSCALL(SEMV, (memaddr)&device_mutex[deviceNo][DISK_MUTEX], 0,0);
 		
 	}
