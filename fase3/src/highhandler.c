@@ -7,6 +7,8 @@
 #include <libuarm.h>
 #include <init3.h>
 #include <highsyscall.h>
+#include <scheduler.h>
+#include <main.h>
 
 
 void schedule(state_t *old){
@@ -18,8 +20,9 @@ void schedule(state_t *old){
 }
 void highSysHandler(){
 	//tprint("in highSysHandler!\n");
-	state_t old_sys;
-	old_sys=new_old_state_t[2];
+	//state_t old_sys;
+	state_t	old_sys=new_old_state_t[2];
+	pc=new_old_state_t[2].pc;
 	/*old_sys.a1=new_old_state_t[2].a1;
 	old_sys.a2=new_old_state_t[2].a2;
 	old_sys.a3=new_old_state_t[2].a3;
@@ -69,6 +72,8 @@ void highSysHandler(){
 			break;
 		case DISK_GET:
 			tprint("DISK_GET\n");
+			diskGet((int *)old_sys.a2,old_sys.a3,old_sys.a4);
+			tprint("fine DISK_GET\n");
 			break;
 		case WRITEPRINTER:
 			tprint("WRITEPRINTER\n");
@@ -81,8 +86,10 @@ void highSysHandler(){
 			break;
 	}
 	
-	schedule(&old_sys);
-	//schedule(&new_old_state_t[2]);
-	//WAIT();
+	//schedule(&old_sys);
 	tprint("scheduler finito\n");
+	
+	pc=new_old_state_t[2].pc;
+	schedule(&new_old_state_t[2]);
+	//WAIT();	
 }

@@ -42,6 +42,8 @@ void init3(){
 	if(activePcbs==0)
 		tprint("init3(3): activePcbs == 0\n");
 	SYSCALL(DISK_PUT, (int)&pippo, 0, 0);
+	tprint("pausa intermedia (in init3)\n");
+	SYSCALL(DISK_GET, (int)&pippo, 0, 0);
 	tprint("in init3\n");
 	HALT();
 }

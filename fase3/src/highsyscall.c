@@ -6,6 +6,7 @@
 #include <arch.h>
 #include <types.h>
 #include <syscall.h>
+#include <scheduler.h>
 #include <main.h>
 #include <init3.h>
 
@@ -25,23 +26,34 @@ void delay(int secCnt){
 
 }
 void diskPut(int *blockAddr, int diskNo, int sectNo){
-	int cyl_num = sectNo / MAXHEAD[diskNo] * MAXSECT[diskNo];
+	diskReadWrite(blockAddr, diskNo, sectNo, DEV_DISK_C_WRITEBLK);
+}
+void diskGet(int *blockAddr, int diskNo, int sectNo){
+	diskReadWrite(blockAddr, diskNo, sectNo, DEV_DISK_C_READBLK);
+}
+//il readwirte e' caricato con il comando relativo a read/write (senza specificare head num e sect num)
+void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){		
+	/*int cyl_num = sectNo / MAXHEAD[diskNo] * MAXSECT[diskNo];
 	int head_num = sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) / MAXSECT[diskNo];
 	int sect_num = sectNo-cyl_num-head_num;		//oppure sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) % MAXSECT[diskNo];
-	if(blockAddr==0) tprint("blockAddr==0\n");
-	else	tprint("blockAddr!=0\n");
+	*/
+	int cyl_num,head_num,sect_num;
+	trasformSectNo(diskNo, &cyl_num, &head_num, &sect_num, sectNo);
 	disk_addr[diskNo]=(memaddr)blockAddr;
 	//disk_addr[diskNo]=0x00010000;
 	//getDeviceData0(INT_DISK, diskNo, &data0);
 	//tprint("in diskPut\n");
 	
 	is_seeking_cyl[diskNo]=1;
+	has_finished[diskNo]=0;
+	
 	int COMMAND=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
 	int bitmap=DEV_OVERWRITE_COMMAND;
 	//int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
-	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);
+	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);			//posizionati sul ciclindro giusto!!!
 	
-	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|DEV_DISK_C_WRITEBLK;
+	//setto l'operazione da fare quando si sara' posizionato sul cilindro giusto
+	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|readwirte;
 	
 	uproc[diskNo]=runningPcb;
 	
@@ -64,9 +76,6 @@ void diskPut(int *blockAddr, int diskNo, int sectNo){
 	//SYSCALL(SEMV, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0, 0);
 	//fai un'altra P ma con un altro semaforo magari
 	//tprint("fine diskPut\n");
-}
-void diskGet(int *blockAddr, int diskNo, int sectNo){
-
 }
 void writePrinter(char *virtAddr, int len){
 
@@ -131,22 +140,33 @@ void getDeviceRegister(int IntlineNo, int DevNo,unsigned int** device){
 	*device=(int*)DEV_REG_START+((IntlineNo - 3) * DEV_REGBLOCK_SIZE) + (DevNo * DEV_REG_SIZE);
 }
 void diskNextStep(int deviceNo){
-	if(is_seeking_cyl[deviceNo]){
-		tprint("in diskNextStep (1)\n");
-		is_seeking_cyl[deviceNo]=0;
-		int COMMAND=device_operation[deviceNo][DISK_MUTEX];
-		int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
-		setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[DEV_NUM],0,bitmap);
-		//while(1){}
-		//tprint("fine diskNextStep (1)\n");
+	int STATUS;
+	getDeviceStatus(INT_DISK , deviceNo, &STATUS);
+	tprint("in diskNextStep\n");
+	if(STATUS!=1){
+		tprint("disk error!\n");
+		PANIC();
+	}else if(!has_finished[deviceNo]){
+		if(is_seeking_cyl[deviceNo]){	
+			tprint("in diskNextStep (1)\n");
+			is_seeking_cyl[deviceNo]=0;
+			int COMMAND=device_operation[deviceNo][DISK_MUTEX];
+			int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
+			setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[DEV_NUM],0,bitmap);		// esegui l'operazione richiesta!!!
+			//while(1){}
+			//tprint("fine diskNextStep (1)\n");
+		}else{
+			//is_seeking_cyl[deviceNo]=1;
+			has_finished[deviceNo]=1;
+			tprint("in diskNextStep (2)\n");
+			unsoftblock(uproc[deviceNo]);
+			int bitmap=DEV_OVERWRITE_COMMAND;
+			setDeviceRegister(INT_DISK,deviceNo,0,DEV_C_ACK,0,0,bitmap);
+			SYSCALL(SEMV, (memaddr)&device_mutex[deviceNo][DISK_MUTEX], 0,0);
+			
+		}
 	}else{
-		//is_seeking_cyl[deviceNo]=1;
-		tprint("in diskNextStep (2)\n");
-		unsoftblock(uproc[deviceNo]);
-		int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
-		setDeviceRegister(INT_DISK,deviceNo,0,0,0,0,bitmap);
-		SYSCALL(SEMV, (memaddr)&device_mutex[deviceNo][DISK_MUTEX], 0,0);
-		
+		tprint("interrupt finished\n");
 	}
 }
 void softBlock(pcb_t *pcb){
@@ -158,4 +178,9 @@ void unsoftblock(pcb_t *p){
 	p->waitingOnIO = 0;
 	softBlockedPcbs--;
 	activePcbs++;
+}
+void trasformSectNo(int diskNo, int *cyl_num, int *head_num, int *sect_num, int sectNo){
+	*cyl_num = sectNo / MAXHEAD[diskNo] * MAXSECT[diskNo];
+	*head_num = sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) / MAXSECT[diskNo];
+	*sect_num = sectNo-*cyl_num-*head_num;		//oppure sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) % MAXSECT[diskNo];
 }

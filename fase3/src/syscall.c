@@ -23,7 +23,7 @@ void P(int *semaddr)
      */
     (*semaddr)--;
     if(*semaddr < 0)
-    {	tprint("semaddr < 0\n");
+    {
         pcb_t *p;   /* holds the former running pcb pointer*/
         p = suspend();
         p->p_s = *((state_t *) SYSBK_OLDAREA); /*   saving the process' state in its pcb. The P
@@ -163,13 +163,13 @@ int specifyTrapHandler(int type, state_t *old, state_t *new) {
             /* set areas */
             runningPcb->tlb_new = new;
             runningPcb->tlb_old = old;
-	tprint("in if\n");
+	//tprint("in if\n");
 	/*if(activePcbs==0)
 		tprint("syscall(inizio): activePcbs == 0\n");*/
         }
         /* else if are not clean are already set, failure! Return -1 */
         else {
-		tprint("in else\n");
+		//tprint("in else\n");
             return -1;
         }
         break;
@@ -263,7 +263,7 @@ void getDeviceFromRegister(int * intLine , int * devNo, int * termIO, unsigned i
  */
 
 unsigned int ioOperation(unsigned int command, unsigned int *comm_device_register){
-    tprint("ioOperation\n");
+    //tprint("ioOperation\n");
     int intLine,devNo,termIO;
     getDeviceFromRegister(&intLine ,&devNo, &termIO, comm_device_register);
     *comm_device_register=command;
@@ -417,9 +417,9 @@ void sysHandler(){
 
                 case SEMP:
                     /* a2 should contain the physical address of the semaphore to be P’ed */
-			tprint("int SEMP\n");
+			//tprint("int SEMP\n");
                     P((int*) userRegisters->a2);
-			tprint("fine SEMP\n");
+			//tprint("fine SEMP\n");
                     break;
 
                 case SEMV:

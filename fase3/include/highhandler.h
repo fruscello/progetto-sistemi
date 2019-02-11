@@ -13,6 +13,8 @@
 #define TERMINATE 20
 #include <types.h>
 #include <arch.h>
+
+int pc;
 void schedule(state_t *old);
 void highSysHandler();
 

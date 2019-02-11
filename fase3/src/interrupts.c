@@ -64,9 +64,10 @@ void interruptHandler()
                Single semaphore devices are handled in a uniform way
              */
             case INT_DISK:
-		tprint("in INT_DISK\n");
+		//tprint("in INT_DISK\n");
 		still_soft_blocked=1;
 		diskNextStep(0);
+		//tprint("fine INT_DISK\n");
 		debug=1;
 		break;
             case INT_TAPE:
@@ -130,15 +131,15 @@ void interruptHandler()
     /* Giving back control to processes */
 
     if (dispatchFlag){
-	tprint("\ndispatch flag\n");
+	//tprint("\ndispatch flag\n");
 	dispatch((state_t*)INT_OLDAREA);
     }else if (runningPcb != NULL){ // Some process was running when the interrupt occurred 
-	if(debug)
-	tprint("runningPcb!=null\n");
+	/*if(debug)
+	tprint("runningPcb!=null\n");*/
 	restoreRunningProcess((state_t*)INT_OLDAREA);
     }else{
-	if(debug)
-	tprint("else\n");
+	/*if(debug)
+	tprint("else\n");*/
 	dispatch(NULL);
     }
 }

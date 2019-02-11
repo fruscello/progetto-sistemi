@@ -30,6 +30,8 @@ int device_operation[DEV_NUM][DEV_MUTEX_LEN];
 int disk_op_rdy[DEV_NUM];				
 //true se sta cercando il cilindro, serve all'handler per sapere se continuare diskPut/diskGet lasciati a meta' o cominciare una nuova operazione
 int is_seeking_cyl[DEV_NUM];
+
+int has_finished[DEV_NUM];
 //indica il puntatore all'indirizzo di memoria da scrivere/leggere	
 memaddr disk_addr[DEV_NUM];	
 //indica per ogni numero di device, il processo assegnato (null se non e' ancora stato assegnato)
@@ -43,6 +45,7 @@ void virtualP(int *semaddr, int weight);
 void delay(int secCnt);
 void diskPut(int *blockAddr, int diskNo, int sectNo);
 void diskGet(int *blockAddr, int diskNo, int sectNo);
+void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte);
 void writePrinter(char *virtAddr, int len);
 void terminate();
 
@@ -55,4 +58,5 @@ void getDeviceRegister(int IntlineNo, int DevNo,unsigned int** device);
 void diskNextStep(int deviceNo);
 void softBlock(pcb_t *pcb);
 void unsoftblock(pcb_t *p);
+void trasformSectNo(int diskNo, int *cyl_num, int *head_num, int *sect_num, int sectNo);
 #endif
