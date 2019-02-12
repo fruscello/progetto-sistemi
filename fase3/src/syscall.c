@@ -47,8 +47,12 @@ void V(int *semaddr,state_t *to_save)
     {
         pcb_t *p;   /* holds the unblocked pcb */
         p = removeBlocked(semaddr);
-        if (p != NULL)
+        if (p != NULL){
             insertInReady(p,to_save);
+	    tprint("p!=0\n");
+	}
+	//while(1){}
+	
     }
 }
 
@@ -368,7 +372,6 @@ void sysHandler(){
         *		if there is one it restores the one who called the SYSCALL
         *		else it calls dispatch 
         */
-
     
     state_t *userRegisters = (state_t*) SYSBK_OLDAREA;
     pcb_t *processThrowing = runningPcb;
@@ -508,7 +511,7 @@ void sysHandler(){
     else{
         kernelTimeAccounting(((state_t *) SYSBK_OLDAREA) ->TOD_Hi, ((state_t *) SYSBK_OLDAREA)
                 ->TOD_Low,processThrowing);
-	    if(runningPcb!=NULL){ /*tprint("running != NULL\n");*/restoreRunningProcess(userRegisters); }
-	    else{dispatch(NULL);}//dispatch(NULL);
+	    if(runningPcb!=NULL){ tprint("running != NULL (sysHandler)\n"); restoreRunningProcess(userRegisters); }
+	    else{tprint("running == NULL (sysHandler)\n"); dispatch(NULL);}//dispatch(NULL);
     }
 }

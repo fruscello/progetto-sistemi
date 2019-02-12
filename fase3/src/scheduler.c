@@ -4,6 +4,7 @@
 #include <libuarm.h>
 #include <pcb.h>
 #include <list.h>
+#include <semaphore.h>
 #include <main.h>
 #include <interrupts.h>
 #include <const.h>
@@ -27,10 +28,19 @@ void dispatch(state_t *to_save)
      *          else, wait for an interrupt
      */
 	
-    /*if (runningPcb != NULL){
+    if (runningPcb != NULL){
+	//tprint("runningPcb != NULL (dispatch)\n");
         insertInReady(runningPcb,to_save);
 	runningPcb=NULL;
-    }*/
+    }
+			/*tprint("repeat debug: dispatch\n");
+			if(headBlocked(&device_mutex[0][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
+			else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");*/
+    if(readyPcbs > 0)
+	tprint("(readyPcbs > 0)\n");
+    else
+	tprint("(readyPcbs <= 0)\n");
+	
     if (readyPcbs > 0)
     {
         pcb_t *p;
@@ -50,6 +60,7 @@ void dispatch(state_t *to_save)
         }
         /* If there are no more processes in the ready queue but some processes are soft-blocked then the system needs to be put in a Wait state to wait for an interrupt */
         else if((softBlockedPcbs!=0) || (pseudoClockSem < 0)){
+	    //tprint("wait\n");
             int status = getSTATUS();
             updateTimer();
             setSTATUS(STATUS_ALL_INT_ENABLE(status));
@@ -57,7 +68,7 @@ void dispatch(state_t *to_save)
         }
         /* If there are no more processes in the ready queue and no processes are soft-blocked then the system is probably in deadlock */
         else if (activePcbs!=0){
-            tprint("Deadlock detected, panicking (MESSAGE BY KERNEL, NOT P2TEST)!");    
+            tprint("Deadlock detected, panicking (MESSAGE BY KERNEL (dispatch), NOT P2TEST)!");    
             PANIC();
         }
     }
@@ -113,18 +124,17 @@ int insertInReady(pcb_t *p, state_t *to_save)
         insertProcQ(&readyQueue,p);
         readyPcbs++;
         if (runningPcb != NULL && (p->p_priority > runningPcb->p_priority || flag)) 
-            /*
-             * The second part of the or is used when, during the dipatch function, the running
-             *  process needs to be stopped and saved
-             */
+            
+             //The second part of the or is used when, during the dipatch function, the running
+             //process needs to be stopped and saved
         {
-            pcb_t *q = suspend(); /* Points to the pcb of the process running before this function
-                                     was called */ 
+            pcb_t *q = suspend(); // Points to the pcb of the process running before this function
+                                  //   was called 
             if (to_save != NULL)
             {
                 if (to_save == (state_t*) INT_OLDAREA)
-                    to_save->pc -= 4; /* Restoring the pc to the right value */
-                q->p_s = *to_save; /* Saving the process state in its PCB */
+                    to_save->pc -= 4; // Restoring the pc to the right value 
+                q->p_s = *to_save; // Saving the process state in its PCB 
             }
             if (!flag)
             {

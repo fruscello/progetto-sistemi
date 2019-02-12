@@ -19,20 +19,24 @@ void initNewOld(){
 	initHandler((memaddr)&new_old_state_t[1],(memaddr)0/*tlbhandler*/);
 	initHandler((memaddr)&new_old_state_t[3],(memaddr)highSysHandler);		//sys handler
 	initHandler((memaddr)&new_old_state_t[5],(memaddr)0/*traphandler*/);
-	for(int i=1;i<=5;i=i+2){
+	/*for(int i=1;i<=5;i=i+2){
 		new_old_state_t[i].sp-=QPAGE;
-	}
+	}*/
 	
 }
 void init3(){
 	initDevices();
 	initNewOld();
-	
-	int pippo;
+	int SEG2=0x40000000;
+	int PAGE_SIZE=4096;
+	int *buffer;
+	int *pippo=(int*)0x00030000;
+	int *pippo_t=&PAGE_SIZE+PAGE_SIZE;
+	buffer = (int *)(SEG2 + (20 * PAGE_SIZE));
 	
 	if(activePcbs==0)
 		tprint("init3(1):activePcbs = 0\n");
-	//SYSCALL(SPECHDL, SPECTLB, (memaddr)&new_old_state_t[0], (memaddr)&new_old_state_t[1]);
+	SYSCALL(SPECHDL, SPECTLB, (memaddr)&new_old_state_t[0], (memaddr)&new_old_state_t[1]);
 	
 	if(activePcbs==0)
 		tprint("init3(2): activePcbs == 0\n");
@@ -41,9 +45,9 @@ void init3(){
 	
 	if(activePcbs==0)
 		tprint("init3(3): activePcbs == 0\n");
-	SYSCALL(DISK_PUT, (int)&pippo, 0, 0);
-	tprint("pausa intermedia (in init3)\n");
-	SYSCALL(DISK_GET, (int)&pippo, 0, 0);
+	//SYSCALL(DISK_PUT, (int)pippo, 0, 0);
+	//tprint("pausa intermedia (in init3)\n");
+	SYSCALL(DISK_GET, (int)pippo, 0, 0);
 	tprint("in init3\n");
 	HALT();
 }

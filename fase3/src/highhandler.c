@@ -16,7 +16,10 @@ void schedule(state_t *old){
 	//if(old->a1==1) tprint("old_sys == 1\n");
 	//updateTimer();
 	//freezeLastTime(runningPcb); /* Freezing the lasttime in pcb for calculating next user time */
-	LDST(old);
+	//kernelTimeAccounting(((state_t *) old) ->TOD_Hi, ((state_t *) old)->TOD_Low,processThrowing);
+	
+	if(runningPcb!=NULL){ tprint("running != NULL (schedule)\n"); restoreRunningProcess(old); }
+	else{tprint("running == NULL (schedule)\n"); dispatch(NULL);}
 }
 void highSysHandler(){
 	//tprint("in highSysHandler!\n");
@@ -90,6 +93,7 @@ void highSysHandler(){
 	tprint("scheduler finito\n");
 	
 	pc=new_old_state_t[2].pc;
+	//schedule(&runningPcb->p_s);
 	schedule(&new_old_state_t[2]);
 	//WAIT();	
 }

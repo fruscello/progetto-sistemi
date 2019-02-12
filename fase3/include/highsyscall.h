@@ -55,6 +55,7 @@ void setDeviceRegister(int IntlineNo , int DevNo,unsigned int STATUS,unsigned in
 void getDeviceStatus(int IntlineNo , int DevNo, int* STATUS);
 void getDeviceData1(int IntlineNo , int DevNo, int* DATA1);
 void getDeviceRegister(int IntlineNo, int DevNo,unsigned int** device);
+void pippo();
 void diskNextStep(int deviceNo);
 void softBlock(pcb_t *pcb);
 void unsoftblock(pcb_t *p);

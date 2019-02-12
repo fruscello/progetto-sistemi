@@ -39,6 +39,9 @@ void interruptHandler()
     userTimeAccounting(( (state_t *) INT_OLDAREA)->TOD_Hi, ( (state_t *) INT_OLDAREA)->TOD_Low); /* Now I account user time from the last moment I calculated it */
 
     if (CAUSE_IP_GET(cause,INT_TIMER)){
+			/*tprint("repeat debug: timer interrupt\n");
+			if(headBlocked(&device_mutex[0][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
+			else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");*/
         dispatchFlag = handleTimer();
 	//tprint("\nint timer\n");
     }
@@ -135,11 +138,11 @@ void interruptHandler()
 	dispatch((state_t*)INT_OLDAREA);
     }else if (runningPcb != NULL){ // Some process was running when the interrupt occurred 
 	/*if(debug)
-	tprint("runningPcb!=null\n");*/
+	tprint("runningPcb!=null (dispatch)\n");*/
 	restoreRunningProcess((state_t*)INT_OLDAREA);
     }else{
 	/*if(debug)
-	tprint("else\n");*/
+	tprint("runningPcb==null (dispatch)\n");*/
 	dispatch(NULL);
     }
 }

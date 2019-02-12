@@ -1,8 +1,11 @@
 #include <highsyscall.h>
+#include <highhandler.h>
 #include <uARMtypes.h>
 #include <uARMconst.h>
 #include <libuarm.h>
 #include <pcb.h>
+#include <list.h>
+#include <semaphore.h>
 #include <arch.h>
 #include <types.h>
 #include <syscall.h>
@@ -60,7 +63,14 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 	//sistemo le variabili di fase 2
 	softBlock(runningPcb);
 	
-	SYSCALL(SEMP, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0,0);		//la v va fatta nell'handler
+			tprint("repeat debug: 3\n");
+	if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
+	else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
+	P(&device_mutex[diskNo][DISK_MUTEX]);
+			tprint("repeat debug: 4\n");
+	if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
+	else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
+	//SYSCALL(SEMP, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0,0);		//la v va fatta nell'handler
 	
 	
 		/*is_seeking_cyl[diskNo]=1;
@@ -139,6 +149,7 @@ void getDeviceData1(int IntlineNo , int DevNo, int* DATA1){
 void getDeviceRegister(int IntlineNo, int DevNo,unsigned int** device){
 	*device=(int*)DEV_REG_START+((IntlineNo - 3) * DEV_REGBLOCK_SIZE) + (DevNo * DEV_REG_SIZE);
 }
+void pippo(){}
 void diskNextStep(int deviceNo){
 	int STATUS;
 	getDeviceStatus(INT_DISK , deviceNo, &STATUS);
@@ -153,24 +164,50 @@ void diskNextStep(int deviceNo){
 			int COMMAND=device_operation[deviceNo][DISK_MUTEX];
 			int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
 			setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[DEV_NUM],0,bitmap);		// esegui l'operazione richiesta!!!
+			int status=1;
+			while(status){
+			getDeviceStatus(INT_DISK, deviceNo, &status);
+			if(status==1)
+				status=0;
+			tprint("repeat debug: 1\n");
+			if(headBlocked(&device_mutex[deviceNo][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
+			else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");
+			}
+			tprint("fine debug: 1\n");
 			//while(1){}
 			//tprint("fine diskNextStep (1)\n");
 		}else{
+			tprint("repeat debug: 2\n");
+			if(headBlocked(&device_mutex[deviceNo][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
+			else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");
 			//is_seeking_cyl[deviceNo]=1;
 			has_finished[deviceNo]=1;
 			tprint("in diskNextStep (2)\n");
-			unsoftblock(uproc[deviceNo]);
 			int bitmap=DEV_OVERWRITE_COMMAND;
 			setDeviceRegister(INT_DISK,deviceNo,0,DEV_C_ACK,0,0,bitmap);
-			SYSCALL(SEMV, (memaddr)&device_mutex[deviceNo][DISK_MUTEX], 0,0);
 			
+			if(activePcbs==0)tprint("activePcbs==0 (1)\n");
+			if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (1)\n");
+			unsoftblock(uproc[deviceNo]);
+			if(activePcbs==0)tprint("activePcbs==0 (2)\n");
+			if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (2)\n");
+			//pcb_t *last_running_pcb=running_pcb;
+			//state_t last_state=last_running_pcb->p_s;
+			if(device_mutex[deviceNo][DISK_MUTEX]==0) tprint("device_mutex[deviceNo][DISK_MUTEX]==0\n");
+			if(device_mutex[deviceNo][DISK_MUTEX]>0) tprint("device_mutex[deviceNo][DISK_MUTEX]>0\n");
+			if(device_mutex[deviceNo][DISK_MUTEX]<0) tprint("device_mutex[deviceNo][DISK_MUTEX]<0\n");
+			V(&device_mutex[deviceNo][DISK_MUTEX],&(uproc[deviceNo]->p_s));
+			//SYSCALL(SEMV, (memaddr)&device_mutex[deviceNo][DISK_MUTEX], 0,0);
+			//tprint("pippo\n");
+			//last_running_pcb->p_s=last_state;
+			schedule((state_t*)INT_OLDAREA);
 		}
 	}else{
 		tprint("interrupt finished\n");
 	}
 }
 void softBlock(pcb_t *pcb){
-	runningPcb->waitingOnIO=1;
+	pcb->waitingOnIO=1;
 	activePcbs--;
 	softBlockedPcbs++;
 }
