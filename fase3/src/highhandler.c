@@ -74,7 +74,7 @@ void highSysHandler(){
 			tprint("fine DISK_PUT\n");
 			break;
 		case DISK_GET:
-			tprint("DISK_GET\n");
+			tprint("DISK_GET\n");	
 			diskGet((int *)old_sys.a2,old_sys.a3,old_sys.a4);
 			tprint("fine DISK_GET\n");
 			break;

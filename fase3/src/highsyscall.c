@@ -46,6 +46,7 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 	//disk_addr[diskNo]=0x00010000;
 	//getDeviceData0(INT_DISK, diskNo, &data0);
 	//tprint("in diskPut\n");
+			
 	
 	is_seeking_cyl[diskNo]=1;
 	has_finished[diskNo]=0;
@@ -54,6 +55,7 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 	int bitmap=DEV_OVERWRITE_COMMAND;
 	//int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
 	setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);			//posizionati sul ciclindro giusto!!!
+	//pippo();
 	
 	//setto l'operazione da fare quando si sara' posizionato sul cilindro giusto
 	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|readwirte;
@@ -163,17 +165,18 @@ void diskNextStep(int deviceNo){
 			is_seeking_cyl[deviceNo]=0;
 			int COMMAND=device_operation[deviceNo][DISK_MUTEX];
 			int bitmap=DEV_OVERWRITE_COMMAND|DEV_OVERWRITE_DATA0;
-			setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[DEV_NUM],0,bitmap);		// esegui l'operazione richiesta!!!
-			int status=1;
+			setDeviceRegister(INT_DISK,deviceNo,0,COMMAND,(unsigned int)disk_addr[deviceNo],0,bitmap);		// esegui l'operazione richiesta!!!
+			//pippo();
+			/*int status=1;
 			while(status){
-			getDeviceStatus(INT_DISK, deviceNo, &status);
-			if(status==1)
-				status=0;
-			tprint("repeat debug: 1\n");
-			if(headBlocked(&device_mutex[deviceNo][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
-			else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");
+				getDeviceStatus(INT_DISK, deviceNo, &status);
+				if(status==1)
+					status=0;
+				tprint("repeat debug: 1\n");
+				if(headBlocked(&device_mutex[deviceNo][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
+				else	tprint("device_mutex[deviceNo][DISK_MUTEX]!=null\n");
 			}
-			tprint("fine debug: 1\n");
+			tprint("fine debug: 1\n");*/
 			//while(1){}
 			//tprint("fine diskNextStep (1)\n");
 		}else{

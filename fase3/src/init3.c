@@ -30,7 +30,8 @@ void init3(){
 	int SEG2=0x40000000;
 	int PAGE_SIZE=4096;
 	int *buffer;
-	int *pippo=(int*)0x00030000;
+	int pippo=0x00030000;
+	*(int *)pippo=7;
 	int *pippo_t=&PAGE_SIZE+PAGE_SIZE;
 	buffer = (int *)(SEG2 + (20 * PAGE_SIZE));
 	
@@ -45,9 +46,14 @@ void init3(){
 	
 	if(activePcbs==0)
 		tprint("init3(3): activePcbs == 0\n");
-	//SYSCALL(DISK_PUT, (int)pippo, 0, 0);
+	SYSCALL(DISK_PUT, (int)pippo, 0, 0);
+	*(int *)pippo=8;
 	//tprint("pausa intermedia (in init3)\n");
-	SYSCALL(DISK_GET, (int)pippo, 0, 0);
+	SYSCALL(DISK_GET,(int)pippo, 0, 0);
+	if(*(int *)pippo==7)tprint("TEST COMPLETATO CON SUCCESSO\n");
+	else if(*(int *)pippo==8)tprint("TEST FALLITO (pippo=8)\n");
+	else tprint("TEST FALLITO (pippo!=7 && pippo!=8\n");
+	
 	tprint("in init3\n");
 	HALT();
 }
