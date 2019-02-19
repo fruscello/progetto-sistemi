@@ -7,6 +7,7 @@
 #include <semaphore.h>
 #include <main.h>
 #include <interrupts.h>
+#include <utility.h>
 #include <const.h>
 
 void dispatch(state_t *to_save)
@@ -29,7 +30,7 @@ void dispatch(state_t *to_save)
      */
 	
     if (runningPcb != NULL){
-	//tprint("runningPcb != NULL (dispatch)\n");
+	tprint("runningPcb != NULL (dispatch)\n");
         insertInReady(runningPcb,to_save);
 	runningPcb=NULL;
     }
@@ -51,6 +52,8 @@ void dispatch(state_t *to_save)
         runningPcb = p;
         updateTimer();  /* Load the new timer */
         freezeLastTime(p); /* Freezing the lasttime in pcb for calculating next user time */
+	//tprint("sto lanciando il processo\n");
+	a_pippo();
         LDST(&runningPcb->p_s); /* load the new PCB */
     }else{
         /* If there are no more processes in the ready queue and no active ones the system has done its job and needs to shut down */

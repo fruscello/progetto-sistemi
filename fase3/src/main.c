@@ -97,7 +97,6 @@ int init2(memaddr firstPcb) {
 //tprint("in main");
     clockStartLO = getTODLO();
     clockStartHI = getTODHI();
-
     dispatch(NULL);
     /* end of the nucleus initialization */
 

@@ -17,9 +17,13 @@ void schedule(state_t *old){
 	//updateTimer();
 	//freezeLastTime(runningPcb); /* Freezing the lasttime in pcb for calculating next user time */
 	//kernelTimeAccounting(((state_t *) old) ->TOD_Hi, ((state_t *) old)->TOD_Low,processThrowing);
+	if(runningPcb!=NULL)
+		LDST(old);
+	tprint("dispatch(schedule)\n");
+	dispatch(NULL);
+	/*if(runningPcb!=NULL){ tprint("running != NULL (schedule)\n"); restoreRunningProcess(old); }
+	else{tprint("running == NULL (schedule)\n"); dispatch(NULL);}*/
 	
-	if(runningPcb!=NULL){ tprint("running != NULL (schedule)\n"); restoreRunningProcess(old); }
-	else{tprint("running == NULL (schedule)\n"); dispatch(NULL);}
 }
 void highSysHandler(){
 	//tprint("in highSysHandler!\n");

@@ -374,6 +374,7 @@ void sysHandler(){
         */
     
     state_t *userRegisters = (state_t*) SYSBK_OLDAREA;
+    //runningPcb->p_s=*userRegisters;			//aggiunta forse sbagliata
     pcb_t *processThrowing = runningPcb;
     int passupFlag=0; /* Used to differentiate the exit point, 0 is false 1 is true */
     state_t *passupHandler=NULL; /* Used to differentiate the exit point, 0 is false 1 is true */

@@ -38,6 +38,7 @@ void interruptHandler()
     int debug=0;
     userTimeAccounting(( (state_t *) INT_OLDAREA)->TOD_Hi, ( (state_t *) INT_OLDAREA)->TOD_Low); /* Now I account user time from the last moment I calculated it */
 
+	a_int_debug[0]=cause;
     if (CAUSE_IP_GET(cause,INT_TIMER)){
 			/*tprint("repeat debug: timer interrupt\n");
 			if(headBlocked(&device_mutex[0][DISK_MUTEX])==NULL)tprint("device_mutex[deviceNo][DISK_MUTEX]=null\n");
@@ -53,6 +54,8 @@ void interruptHandler()
             if (CAUSE_IP_GET(cause,i))
             {
                 int bitmap = *((memaddr*)CDEV_BITMAP_ADDR(i));
+		a_int_debug[3]=bitmap;
+		a_int_debug[4]=CDEV_BITMAP_ADDR(i);
                 for (j = 0; j < BYTELEN; j++)
                     if (bitmap & (1 << j))
                         break;
@@ -61,15 +64,26 @@ void interruptHandler()
         devreg_t *deviceRegister = (devreg_t *)DEV_REG_ADDR(i,j);
         int which = -1; /* If the interrupt was from a terminal, this discriminates between
                            transimmsion and receipt */
+	a_int_debug[1]=i;
+	a_int_debug[2]=j;
         switch(i)
         {
             /*
                Single semaphore devices are handled in a uniform way
              */
             case INT_DISK:
-		//tprint("in INT_DISK\n");
+		tprint("in INT_DISK\n");
 		still_soft_blocked=1;
-		diskNextStep(0);
+		if(j==0) tprint("j==0\n");
+		if(j==1) tprint("j==1\n");
+		if(j==2) tprint("j==2\n");
+		if(j==3) tprint("j==3\n");
+		if(j==4) tprint("j==4\n");
+		if(j==5) tprint("j==5\n");
+		if(j==6) tprint("j==6\n");
+		if(j==7) tprint("j==7\n");
+		if(j==8) tprint("j==8\n");	
+		diskNextStep(j);	
 		//tprint("fine INT_DISK\n");
 		debug=1;
 		break;

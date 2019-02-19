@@ -10,7 +10,7 @@
  * or check the documentation.
  */
 
-
+int a_int_debug[5];
 /*  Timer's Interrupt Service Routine. Intercepts the interrupt, determines the cause and takes the apprioriate action. 
  *  Returns 1 if a dispatch is necessary (this happens if the timeslice expires), 0 otherwise.
  */

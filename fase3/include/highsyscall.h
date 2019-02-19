@@ -16,6 +16,7 @@
 
 #include <uARMtypes.h>
 #include <pcb.h>
+#include <VMhandler.h>
 
 
 //int device_mutex[8][devNo];
@@ -35,8 +36,30 @@ int has_finished[DEV_NUM];
 //indica il puntatore all'indirizzo di memoria da scrivere/leggere	
 memaddr disk_addr[DEV_NUM];	
 //indica per ogni numero di device, il processo assegnato (null se non e' ancora stato assegnato)
-pcb_t *uproc[DEV_NUM];				
+pcb_t *uproc[DEV_NUM];
 
+typedef struct {
+	int syl_op[MAXUPROC];
+	int COMMAND[MAXUPROC];
+	memaddr DATA0[MAXUPROC];
+	int next_op;
+	int dim;
+} buffer;
+
+typedef struct {
+	int sem;	//semaforo su cui bloccare il processo. Un processo bloccato su ogni semaforo
+	int startHi;		//momento in cui viene bloccato (da cui comincia ad aspettare)
+	int startLo;
+	int time2wait;		//tempo che il processo deve aspettare
+	int is_blocked;		//true se il processo e' bloccato
+	state_t blocked_p_s;
+} delay_blocked;	
+
+//per il disco 0 non c'e' buffer, e' gestito separatamente, quindi ne basterebbero DEV_NUM-1 non servirebbe, ma lo tengo per semplicita'
+buffer disk_buffer[DEV_NUM];
+delay_blocked delay_table[MAXUPROC];
+
+int a_sys_debug[10];
 
 void readTerminal(char *virtAddr);
 void writeTerminal(char *virtAddr, int len);
@@ -49,13 +72,20 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte);
 void writePrinter(char *virtAddr, int len);
 void terminate();
 
+void delayDemon();
+int delay_need2unblock(int i);
+void delayBlock(int secCnt, state_t *state);
+void delayUnblock(int to_unblock);
+int getFirstDelayTableFree();
+void initDelay();
+
 void initDevices();
+void initDiskBuffer();
 void initDisk();
 void setDeviceRegister(int IntlineNo , int DevNo,unsigned int STATUS,unsigned int COMMAND,unsigned int DATA0,unsigned int DATA1,int bitmap);
 void getDeviceStatus(int IntlineNo , int DevNo, int* STATUS);
 void getDeviceData1(int IntlineNo , int DevNo, int* DATA1);
-void getDeviceRegister(int IntlineNo, int DevNo,unsigned int** device);
-void pippo();
+void getDeviceRegisterHig(int IntlineNo, int DevNo,unsigned int** device);
 void diskNextStep(int deviceNo);
 void softBlock(pcb_t *pcb);
 void unsoftblock(pcb_t *p);

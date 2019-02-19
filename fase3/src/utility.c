@@ -3,7 +3,7 @@
 #include <types.h>
 #include <arch.h>
 
-
+void a_pippo(){}
 void stateCpy(state_t *out,state_t *in){
 	out->a1=in->a1;
 	out->a2=in->a2;
