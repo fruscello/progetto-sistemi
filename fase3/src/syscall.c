@@ -60,12 +60,26 @@ void V(int *semaddr,state_t *to_save)
 int createProcess(state_t *statep, int priority, void **cpid){
 	pcb_t *newproc= allocPcb();
 	if ( newproc != NULL ){
-        if (runningPcb != NULL)
+	    newproc->sysbk_new = NULL;
+	    newproc->sysbk_old = NULL;
+	    newproc->tlb_new = NULL;
+	    newproc->tlb_old = NULL;
+	    newproc->pgmtrap_new = NULL;
+	    newproc->pgmtrap_old = NULL;
+        if (runningPcb != NULL){
             insertChild(runningPcb,newproc);
-        else    /* This happens only for the first process */
+	    newproc->sysbk_new = runningPcb->sysbk_new;
+            newproc->sysbk_old = runningPcb->sysbk_old;
+            newproc->tlb_new = runningPcb->tlb_new;
+            newproc->tlb_old = runningPcb->tlb_old;
+            newproc->pgmtrap_new = runningPcb->pgmtrap_new;
+            newproc->pgmtrap_old = runningPcb->pgmtrap_old;
+        }else{    /* This happens only for the first process */
+	    
             newproc->p_parent = NULL;
-		newproc->p_s=*statep;
-		newproc->old_priority=newproc->p_priority=priority;
+	}
+	newproc->p_s=*statep;
+	newproc->old_priority=newproc->p_priority=priority;
         if (cpid != NULL) /* If the creating process doesn't need the pid */
             *cpid=newproc;
         newproc->waitingOnIO = 0;
@@ -75,20 +89,14 @@ int createProcess(state_t *statep, int priority, void **cpid){
 
         /* Initializing variables of trap handlers and times */
         /* trap handlers to NULL */
-        newproc->sysbk_new = NULL;
-        newproc->sysbk_old = NULL;
-        newproc->tlb_new = NULL;
-        newproc->tlb_old = NULL;
-        newproc->pgmtrap_new = NULL;
-        newproc->pgmtrap_old = NULL;
+        
         /* defining starting wallclocktime */
         newproc->wallclocktime = getTODHI();
         newproc->wallclocktime <<= 32;
         newproc->wallclocktime += getTODLO();
-
+	
         /* In the end, I put in the ready queue the brand new process */
         insertInReady(newproc,(state_t*)SYSBK_OLDAREA);
-
 		return 0;
 	}
 	else{

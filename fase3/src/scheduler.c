@@ -53,7 +53,7 @@ void dispatch(state_t *to_save)
         updateTimer();  /* Load the new timer */
         freezeLastTime(p); /* Freezing the lasttime in pcb for calculating next user time */
 	//tprint("sto lanciando il processo\n");
-	a_pippo();
+	//a_pippo();
         LDST(&runningPcb->p_s); /* load the new PCB */
     }else{
         /* If there are no more processes in the ready queue and no active ones the system has done its job and needs to shut down */

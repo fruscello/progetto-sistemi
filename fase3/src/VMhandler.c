@@ -162,21 +162,37 @@ void updateTLB(int segno,int vpn, int ASID){		//aggiorno il tlb con i nuovi valo
 	if(resolving_segno==0) tprint("resolving_segno == 0(updateTLB, in VM)\n");
 	tprint("sto modificando l'indice(updateTLB)\n");
 	TLBWR();
-	//TLBWI_next();
+	TLBWI_next();
 	//a_pippo();
 	
 }
 void TLBWI_next(){
-	int i=getTLB_Index();
-	setTLB_Index((i+1)%16);
+	int index=next_index;
+	a_debug[0]=index;
+	setTLB_Index(index<<8);
+	next_index=(next_index+1)%TLB_DIM;
 	TLBWI();
+}
+int chuckIfPresent(int segno,int vpn, int ASID){
+	//tprint("in chuckIfPresent\n");
+	int i=0;
+	while(i<TLB_DIM){
+		int index=i<<8;
+		setTLB_Index(index);
+		TLBR();
+		int hi=getEntryHi();
+		a_debug[i]=hi;
+		i++;
+		//a_pippo();
+	}
+	//a_pippo();
 }
 void tlbHighHandler(){
 	tprint("in VMHandler!\n");
 	a_debug[0]=CAUSE_EXCCODE_GET(new_old_state_t[0].CP15_Cause);//getBadVAddr();
 	a_debug[1]=ENTRYHI_ASID_GET(new_old_state_t[0].CP15_EntryHi);
 	runningPcb->p_s=new_old_state_t[0];
-	
+	//a_pippo();
 	int cause=CAUSE_EXCCODE_GET(new_old_state_t[0].CP15_Cause);
 	if((cause=UTLBLEXCEPTION)||(cause=UTLBSEXCEPTION)||(cause=TLBLEXCEPTION)||(cause=TLBSEXCEPTION)){
 		
@@ -195,14 +211,15 @@ void tlbHighHandler(){
 		int segno=ENTRYHI_SEGNO_GET(current_old.CP15_EntryHi);
 		int vpn=ENTRYHI_VPN_GET(current_old.CP15_EntryHi);
 		int ASID=ENTRYHI_ASID_GET(current_old.CP15_EntryHi);
+		chuckIfPresent(segno,vpn,ASID);
 		if(segno==0){
 			int hi,low;
 			hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vpn),segno);
 			low=ENTRYLO_PFN_SET(0,vpn)|ENTRYLO_DIRTY|ENTRYLO_VALID;
 			setEntryHi(hi);
 			setEntryLo(low);
-			TLBWR();
-			//TLBWI_next();
+			//TLBWR();
+			TLBWI_next();
 			//TLBWI();
 			//se la v fa andare un altro processo, non fara' mai schedule(&current_old), ma carichera' direttamente lo stato giusto
 			V(&tlb_mutex,&(runningPcb->p_s));		
@@ -211,20 +228,6 @@ void tlbHighHandler(){
 		}
 		requesting_tlb=runningPcb;
 		
-		/*a_pippo();
-		int hi,low;
-		hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vpn),segno);
-		low=ENTRYLO_PFN_SET(0,vpn)|ENTRYLO_DIRTY|ENTRYLO_VALID;
-		a_debug[0]=low;
-		low=ENTRYLO_PFN_SET(low,RAM_TOP/(FRAMESIZE*WS)-2-next_page_pool);
-		a_debug[1]=low;
-		a_debug[2]=RAM_TOP/FRAMESIZE-2-next_page_pool;
-		a_debug[3]=FRAMESIZE;
-		setEntryHi(hi);
-		setEntryLo(low);
-		TLBWR();
-		a_pippo();
-		schedule(&new_old_state_t[0]);*/
 		
 		a_debug[0]=segno;
 		a_debug[1]=vpn;
@@ -246,7 +249,7 @@ void tlbHighHandler(){
 			tprint("SI pagePool[next_page_pool]&1 (tlb handler)\n");
 			setInvalid( segno, ENTRYHI_VPN_GET(pagePool[next_page_pool]), ENTRYHI_SEGNO_GET(pagePool[next_page_pool]) );
 			TLBCLR();
-			SYSCALL(DISK_PUT, RAM_TOP - 2*PAGESIZE-next_page_pool*PAGESIZE, 0, ASID);		//rimetto la pagina su disco
+			SYSCALL(DISK_PUT, RAM_TOP - 2*PAGESIZE-next_page_pool*PAGESIZE, 0, /*ASID*MAXPAGES+vpn*/0);		//rimetto la pagina su disco
 			
 			
 		}else{
@@ -254,7 +257,7 @@ void tlbHighHandler(){
 			//tlbNextStep();
 			
 		}
-		SYSCALL(DISK_GET, RAM_TOP - 2*FRAMESIZE-next_page_pool*FRAMESIZE, 0, resolving_ASID);
+		SYSCALL(DISK_GET, RAM_TOP - 2*FRAMESIZE*WS-next_page_pool*FRAMESIZE*WS, 0, /*ASID*MAXPAGES+vpn*/0);		//da sistemare il caso di memoria globlale
 		tprint("dopo diskget(tlbhandler)\n");
 		setValid(resolving_segno,resolving_vpn,resolving_ASID);			//aggiorno le PTE e le strutture per la gestione del page pool
 		updateTLB(resolving_segno,resolving_vpn,resolving_ASID);
@@ -263,7 +266,7 @@ void tlbHighHandler(){
 		V(&tlb_mutex,&(requesting_tlb->p_s));
 		//requesting_tlb->p_s=current_old;
 		tprint("faccio lo scheduling\n");
-		//schedule(&current_old);
+		schedule(&current_old);
 		
 	}else{
 		tprint("errore non previsto!! (tlbHighHandler)\n");

@@ -40,6 +40,19 @@ void diskGet(int *blockAddr, int diskNo, int sectNo){
 void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){	
 	int cyl_num,head_num,sect_num;
 	trasformSectNo(diskNo, &cyl_num, &head_num, &sect_num, sectNo);
+	if((cyl_num>MAXCYL[diskNo])||(head_num>MAXHEAD[diskNo])||(sect_num>MAXSECT[diskNo])||((int)blockAddr>RAM_TOP)){
+		tprint("ATTENZIONE overflow parametri in input\n");
+		a_sys_debug[0]=cyl_num;
+		a_sys_debug[1]=head_num;
+		a_sys_debug[2]=sect_num;
+		a_sys_debug[3]=(int)blockAddr;
+		a_sys_debug[4]=MAXCYL[diskNo];
+		a_sys_debug[5]=MAXHEAD[diskNo];
+		a_sys_debug[6]=MAXSECT[diskNo];
+		a_sys_debug[7]=RAM_TOP;
+		a_sys_debug[8]=sectNo;
+		PANIC();
+	}
 	disk_addr[diskNo]=(memaddr)blockAddr;
 			
 	
@@ -68,7 +81,7 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 		int bitmap=DEV_OVERWRITE_COMMAND;
 		int COMMAND=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
 		setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);			//posizionati sul ciclindro giusto!!!
-		uproc[diskNo]=runningPcb;
+		//uproc[diskNo]=runningPcb;
 	}
 	//sistemo le variabili di fase 2
 	softBlock(runningPcb);
@@ -319,7 +332,7 @@ void unsoftblock(pcb_t *p){
 	activePcbs++;
 }
 void trasformSectNo(int diskNo, int *cyl_num, int *head_num, int *sect_num, int sectNo){
-	*cyl_num = sectNo / MAXHEAD[diskNo] * MAXSECT[diskNo];
+	*cyl_num = sectNo / (MAXHEAD[diskNo] * MAXSECT[diskNo]);
 	*head_num = sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) / MAXSECT[diskNo];
 	*sect_num = sectNo-*cyl_num-*head_num;		//oppure sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) % MAXSECT[diskNo];
 }

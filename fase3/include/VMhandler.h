@@ -8,6 +8,7 @@
 #define MAXUPROC 8
 #define PAGE_POOL_SIZE MAXUPROC*2
 #define SEG_TABLE_DIM 128
+#define TLB_DIM 16
 #define SEG_TABLE_POINTER 0x00007600
 //#define FRSME_SIZE 4096		gia definito come FRAMESIZE
 
@@ -52,7 +53,7 @@ int tlb_step;				//2 se tlb next step dovra' effettuare il second step, 3 se dov
 int next_page_pool;			//indica la prossima pagina da sostituire nella page pool (serve per implementre round robin)
 int next_index;
 unsigned int pagePool[PAGE_POOL_SIZE];		//ogni elemento e' un entry Hi: contiene segno, VPN e ASID. l'ultimo bit e' 1 se la pagina sta venendo usata
-int a_debug[10];			//lo uso solo per fare debug!!!!
+int a_debug[20];			//lo uso solo per fare debug!!!!
 int tlb_mutex;
 pcb_t *requesting_tlb;			//processo che ha generato la tlb
 int resolving_ASID;			//ASID del processo che sta attualmente risolvendo l'eccezione
@@ -70,6 +71,7 @@ void setInvalid(int segno,int vpn, int ASID);
 void setValid(int segno,int vpn, int ASID);
 void updateTLB(int segno,int vpn, int ASID);
 void TLBWI_next();
+int chuckIfPresent(int segno,int vpn, int ASID);
 void tlbHighHandler();
 void tlbNextStep();
 
