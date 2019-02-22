@@ -37,17 +37,10 @@ void diskGet(int *blockAddr, int diskNo, int sectNo){
 	diskReadWrite(blockAddr, diskNo, sectNo, DEV_DISK_C_READBLK);
 }
 //il readwirte e' caricato con il comando relativo a read/write (senza specificare head num e sect num)
-void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){		
-	/*int cyl_num = sectNo / MAXHEAD[diskNo] * MAXSECT[diskNo];
-	int head_num = sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) / MAXSECT[diskNo];
-	int sect_num = sectNo-cyl_num-head_num;		//oppure sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) % MAXSECT[diskNo];
-	*/
+void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){	
 	int cyl_num,head_num,sect_num;
 	trasformSectNo(diskNo, &cyl_num, &head_num, &sect_num, sectNo);
 	disk_addr[diskNo]=(memaddr)blockAddr;
-	//disk_addr[diskNo]=0x00010000;
-	//getDeviceData0(INT_DISK, diskNo, &data0);
-	//tprint("in diskPut\n");
 			
 	
 	is_seeking_cyl[diskNo]=1;
@@ -60,15 +53,18 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 	device_operation[diskNo][DISK_MUTEX]=(((head_num<<8)|sect_num)<<8)|readwirte;//ATTENZIONE prima di togliere questa parte assicurati che con il disco 0 funzioni
 	
 	//riempo il buffer del disco in modo da tener traccia della prossima operazione da fare
-	if((disk_buffer[diskNo].dim<MAXUPROC)&(diskNo!=0)){
-		int first_emplty_space=(disk_buffer[diskNo].next_op+disk_buffer[diskNo].dim)%MAXUPROC;
-		disk_buffer[diskNo].syl_op[first_emplty_space]=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
-		disk_buffer[diskNo].COMMAND[first_emplty_space]=(((head_num<<8)|sect_num)<<8)|readwirte;
-		disk_buffer[diskNo].DATA0[first_emplty_space]=(memaddr)blockAddr;
+	if(disk_buffer[diskNo].dim<MAXUPROC){
+		int next_emplty_space=(disk_buffer[diskNo].next_op+disk_buffer[diskNo].dim)%MAXUPROC;
+		disk_buffer[diskNo].syl_op[next_emplty_space]=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
+		disk_buffer[diskNo].COMMAND[next_emplty_space]=(((head_num<<8)|sect_num)<<8)|readwirte;
+		disk_buffer[diskNo].DATA0[next_emplty_space]=(memaddr)blockAddr;
 		disk_buffer[diskNo].dim++;
+		disk_buffer[diskNo].pcb[next_emplty_space]=runningPcb;		
+		disk_buffer[diskNo].state[next_emplty_space]=new_old_state_t[2];
 		
 	}
 	if((diskNo==0)||(disk_buffer[diskNo].dim==1)){
+		//tprint("inserisco il primo comando\n");
 		int bitmap=DEV_OVERWRITE_COMMAND;
 		int COMMAND=(cyl_num<<8)|DEV_DISK_C_SEEKCYL;
 		setDeviceRegister(INT_DISK,diskNo,0,COMMAND,0,0,bitmap);			//posizionati sul ciclindro giusto!!!
@@ -77,15 +73,20 @@ void diskReadWrite(int *blockAddr, int diskNo, int sectNo,int readwirte){
 	//sistemo le variabili di fase 2
 	softBlock(runningPcb);
 	
-	tprint("repeat debug: 3\n");
-	if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
-	else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
+	//tprint("repeat debug: 3\n");
+	//if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
+	//else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
 	//if(diskNo!=0)			//se e' presente un tlb exception il processo e' gia stato bloccato, non serve bloccarlo di nuovo
-		P(&device_mutex[diskNo][DISK_MUTEX]);
-	//else tprint("diskNo!=0\n");
-	tprint("repeat debug: 4\n");
-	if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
-	else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
+	
+	SYSCALL(SEMP,(int)&device_mutex[diskNo][DISK_MUTEX],0,0);	//blocco il processo finche l'operazione sul disco non viene terminata
+	//while(1){}
+	schedule(&state_to_unblock);
+	//P(&device_mutex[diskNo][DISK_MUTEX]);
+
+	
+	//tprint("repeat debug: 4\n");
+	//if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
+	//else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
 	
 	//tprint("fine diskPut\n");
 }
@@ -242,7 +243,9 @@ void diskNextStep(int diskNo){
 	if(diskNo==0)tprint("diskNo==0(diskNextStep)\n");
 	if(STATUS!=1){
 		a_sys_debug[2]=diskNo;
+		a_sys_debug[3]=STATUS;
 		tprint("disk error!\n");
+		while(1){tprint("disk error!\n");}
 		PANIC();
 	}else if(!has_finished[diskNo]){
 		int next_op=disk_buffer[diskNo].next_op;
@@ -258,31 +261,34 @@ void diskNextStep(int diskNo){
 				
 			}
 		}else{
-			tprint("repeat debug: 2\n");
-			if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
-			else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
+			//tprint("repeat debug: 2\n");
+			//if(headBlocked(&device_mutex[diskNo][DISK_MUTEX])==NULL)tprint("device_mutex[diskNo][DISK_MUTEX]=null\n");
+			//else	tprint("device_mutex[diskNo][DISK_MUTEX]!=null\n");
 			is_seeking_cyl[diskNo]=1;
-			has_finished[diskNo]=1;
 			tprint("in diskNextStep (2)\n");
 			int bitmap=DEV_OVERWRITE_COMMAND;
 			
 			
 			
-			if(diskNo!=0){
-				if(activePcbs==0)tprint("activePcbs==0 (1)\n");
-				if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (1)\n");
-				unsoftblock(uproc[diskNo]);
-				if(activePcbs==0)tprint("activePcbs==0 (2)\n");
-				if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (2)\n");
+			if(/*diskNo!=0*/1){
+				//if(activePcbs==0)tprint("activePcbs==0 (1)\n");
+				//if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (1)\n");
+				unsoftblock(disk_buffer[diskNo].pcb[next_op]);
+				//if(activePcbs==0)tprint("activePcbs==0 (2)\n");
+				//if(softBlockedPcbs==0)tprint("softBlockedPcbs==0 (2)\n");
 				//pcb_t *last_running_pcb=running_pcb;
 				//state_t last_state=last_running_pcb->p_s;
-				if(device_mutex[diskNo][DISK_MUTEX]==0) tprint("device_mutex[diskNo][DISK_MUTEX]==0\n");
+				/*if(device_mutex[diskNo][DISK_MUTEX]==0) tprint("device_mutex[diskNo][DISK_MUTEX]==0\n");
 				if(device_mutex[diskNo][DISK_MUTEX]>0) tprint("device_mutex[diskNo][DISK_MUTEX]>0\n");
-				if(device_mutex[diskNo][DISK_MUTEX]<0) tprint("device_mutex[diskNo][DISK_MUTEX]<0\n");
+				if(device_mutex[diskNo][DISK_MUTEX]<0) tprint("device_mutex[diskNo][DISK_MUTEX]<0\n");*/
 				
 				disk_buffer[diskNo].dim--;
+				state_to_unblock=disk_buffer[diskNo].state[next_op];
 				disk_buffer[diskNo].next_op=(disk_buffer[diskNo].next_op+1)%MAXUPROC;
+				next_op=disk_buffer[diskNo].next_op;
+				//disk_buffer[diskNo].pcb[next_op]->p_s=disk_buffer[diskNo].state[next_op];
 				if(disk_buffer[diskNo].dim<=0){
+					has_finished[diskNo]=1;
 					setDeviceRegister(INT_DISK,diskNo,0,DEV_C_ACK,0,0,bitmap);	
 				}else{
 					setDeviceRegister(INT_DISK,diskNo,0,disk_buffer[diskNo].syl_op[next_op],0,0,bitmap);
@@ -290,10 +296,8 @@ void diskNextStep(int diskNo){
 				}
 				
 				tprint("sblocco il processo (disk next step)\n");
-				V(&device_mutex[diskNo][DISK_MUTEX],&(uproc[diskNo]->p_s));
-				//SYSCALL(SEMV, (memaddr)&device_mutex[diskNo][DISK_MUTEX], 0,0);
-				//tprint("pippo\n");
-				//last_running_pcb->p_s=last_state;
+				SYSCALL(SEMV,(int)&device_mutex[diskNo][DISK_MUTEX],0,0);
+				//V(&device_mutex[diskNo][DISK_MUTEX],&(uproc[diskNo]->p_s));
 				schedule((state_t*)INT_OLDAREA);
 			}else{
 				setDeviceRegister(INT_DISK,diskNo,0,DEV_C_ACK,0,0,bitmap);

@@ -194,9 +194,10 @@ void freezeLastTime(pcb_t *p) {
 int passup(state_t *old_to_save)
 {
 
-    if ((runningPcb == NULL) || (old_to_save == NULL))
+    if ((runningPcb == NULL) || (old_to_save == NULL)){
+	tprint("runningPcb == null || old_to_save == null (passup)\n");
         return 0;
-    else
+    }else
     {
         state_t *new,*old;
         new = NULL;
@@ -216,9 +217,9 @@ int passup(state_t *old_to_save)
             new = runningPcb->sysbk_new;
             old = runningPcb->sysbk_old;
         }
-        if ((new == NULL) || (old == NULL))
+        if ((new == NULL) || (old == NULL)){
             return 0;
-        else
+        }else
         {
             *old = *old_to_save;
             kernelTimeAccounting(((state_t *) TLB_OLDAREA) ->TOD_Hi, ((state_t *) TLB_OLDAREA)

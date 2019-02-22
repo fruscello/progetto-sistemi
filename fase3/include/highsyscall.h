@@ -42,6 +42,8 @@ typedef struct {
 	int syl_op[MAXUPROC];
 	int COMMAND[MAXUPROC];
 	memaddr DATA0[MAXUPROC];
+	pcb_t *pcb[MAXUPROC];
+	state_t state[MAXUPROC];
 	int next_op;
 	int dim;
 } buffer;
@@ -58,6 +60,7 @@ typedef struct {
 //per il disco 0 non c'e' buffer, e' gestito separatamente, quindi ne basterebbero DEV_NUM-1 non servirebbe, ma lo tengo per semplicita'
 buffer disk_buffer[DEV_NUM];
 delay_blocked delay_table[MAXUPROC];
+state_t state_to_unblock;
 
 int a_sys_debug[10];
 

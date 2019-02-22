@@ -372,9 +372,6 @@ void test(void) {
 	SYSCALL(CREATEPROCESS, (memaddr)&p1state, 10, (memaddr)&p1addr);
 	
 	tprint("test started!\n");
-	while(1){
-		tprint("in test\n");
-	}
 	
 	SYSCALL(GETPIDS, (memaddr)&p0addr, (memaddr)&p0paddr, 0);
 	if (p0paddr != NULL) {

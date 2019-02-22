@@ -74,7 +74,7 @@ void interruptHandler()
             case INT_DISK:
 		tprint("in INT_DISK\n");
 		still_soft_blocked=1;
-		if(j==0) tprint("j==0\n");
+		/*if(j==0) tprint("j==0\n");
 		if(j==1) tprint("j==1\n");
 		if(j==2) tprint("j==2\n");
 		if(j==3) tprint("j==3\n");
@@ -82,7 +82,7 @@ void interruptHandler()
 		if(j==5) tprint("j==5\n");
 		if(j==6) tprint("j==6\n");
 		if(j==7) tprint("j==7\n");
-		if(j==8) tprint("j==8\n");	
+		if(j==8) tprint("j==8\n");*/	
 		diskNextStep(j);	
 		//tprint("fine INT_DISK\n");
 		debug=1;

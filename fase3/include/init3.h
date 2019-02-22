@@ -10,8 +10,13 @@
 state_t new_old_state_t[6];		//old tlb, new tlb, old sys, new sys, old pgtrap, new pgtrap
 int a_init3_debug[10];
 int debug;
+memaddr to_launch;
+
 void initNewOld();
 void p11();
+void p12();
+void disk_test1();
+void disk_test2();
 void init3();
 
 #endif // MAIN_H

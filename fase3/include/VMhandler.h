@@ -2,6 +2,7 @@
 #ifndef VMHANDLER_H
 #define VMHANDLER_H
 #define MAXPAGES 32
+#define PAGESIZE FRAMESIZE*WS
 #define U2SEG 0x80000000
 #define U3SEG 0xC0000000
 #define MAXUPROC 8
@@ -35,13 +36,21 @@ typedef struct {
 	segTableEntry entry[SEG_TABLE_DIM];
 } segTable;
 
+
+
 int stegTableTop;		//indica quante posizioni del segment table sono state occupate
 segTable *segT;
 PT Useg3;
 PT Useg2[MAXUPROC];
 
+state_t old_array[MAXUPROC];
+state_t current_old;
+int old_array_head;			//qual'e' la prossima posizione da risolvare
+int old_array_top;			//quale sara' la prossima posizione da riempire
+
 int tlb_step;				//2 se tlb next step dovra' effettuare il second step, 3 se dovra' effettuare il third step
 int next_page_pool;			//indica la prossima pagina da sostituire nella page pool (serve per implementre round robin)
+int next_index;
 unsigned int pagePool[PAGE_POOL_SIZE];		//ogni elemento e' un entry Hi: contiene segno, VPN e ASID. l'ultimo bit e' 1 se la pagina sta venendo usata
 int a_debug[10];			//lo uso solo per fare debug!!!!
 int tlb_mutex;
@@ -50,7 +59,6 @@ int resolving_ASID;			//ASID del processo che sta attualmente risolvendo l'eccez
 int resolving_vpn;			//vpn del processo che sta attualmente risolvendo l'eccezione
 int resolving_segno;			//segno del processo che sta attualmente risolvendo l'eccezione
 
-state_t old_VM;				//stato del processo di quando si blocca per gestire l'indirizzamento virtuale
 void initSegT(int ASID);		//ASID deve essere -1 se se il processo non e' un processo utente
 void initPTE(PTE* p,int segno,int vp,int ASID);
 void initPT2(PT* p,int ASID);
@@ -61,6 +69,7 @@ void findPTE(PTE** pte,int segno,int vpn, int ASID);
 void setInvalid(int segno,int vpn, int ASID);
 void setValid(int segno,int vpn, int ASID);
 void updateTLB(int segno,int vpn, int ASID);
+void TLBWI_next();
 void tlbHighHandler();
 void tlbNextStep();
 

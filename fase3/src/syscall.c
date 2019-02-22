@@ -49,7 +49,7 @@ void V(int *semaddr,state_t *to_save)
         p = removeBlocked(semaddr);
         if (p != NULL){
             insertInReady(p,to_save);
-	    tprint("p!=0\n");
+	    //tprint("p!=0\n");
 	}
 	//while(1){}
 	
@@ -504,6 +504,7 @@ void sysHandler(){
    *		else it calls dispatch
    */
     if(passupFlag){
+	    //tprint("is passing up (syshandler)\n");
 	    if(!passup(passupHandler)){
 		    terminateProcess(runningPcb);
 		    dispatch(NULL);
