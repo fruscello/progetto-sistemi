@@ -29,3 +29,9 @@ void stateCpy(state_t *out,state_t *in){
 	out->TOD_Low=in->TOD_Low;
 	tprint("in stateCpy\n");
 }
+/*int min(int a, int b){
+	if(a<=b)
+		return a;
+	else
+		return b;
+}*/

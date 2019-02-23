@@ -110,15 +110,33 @@ void WTnext(int dev_num){
 		V(&term_addr[dev_num].mutex,(state_t*)INT_OLDAREA);	
 	}
 }
-
 void virtualV(int *semaddr, int weight){
 	int i=0;
 	for(i=0;i<weight;i++)
-		V(semaddr,(state_t*)INT_OLDAREA);
+		*semaddr++;
+	int index=getSemIndex(semaddr);
+	if(index==-1){
+		tprint("non e' possibile bloccare un altro processo!!(highsyscall/virtualV)\n");
+		PANIC();
+	}
+	int m=min(*semaddr,sem_pv[index].blocked_proc_num);
+	for (i=0;i<m;i++){
+		V(&(sem_pv[index].sem),(state_t*)&new_old_state_t[2]);
+	}
 }
 void virtualP(int *semaddr, int weight){
-	(*semaddr)-=weight-1;
-	SYSCALL(SEMP,(memaddr)semaddr,0,0);
+	//sys_ret_state
+	(*semaddr)-=weight;
+	if(*semaddr<0){
+		sys_ret_state[ENTRYHI_ASID_GET(runningPcb->p_s.CP15_EntryHi)]=new_old_state_t[2];
+		int index=getSemIndex(semaddr);
+		if(index==-1){
+			tprint("non e' possibile bloccare un altro processo!!(highsyscall/virtualV)\n");
+			PANIC();
+		}
+		SYSCALL(SEMP,(memaddr)sem_pv[index].sem,0,0);
+		LDST(&(sys_ret_state[ENTRYHI_ASID_GET(runningPcb->p_s.CP15_EntryHi)]));
+	}
 }
 void delay(int secCnt){
 	delayBlock(secCnt,&new_old_state_t[2]);
@@ -309,6 +327,14 @@ void initDelay(){
 	}
 	initDiskBuffer();
 }
+void initSem(){
+	int i;
+	for(i=0;i<MAXUPROC;i++){
+		sem_pv[i].vir_sem=0;
+		sem_pv[i].sem=0;
+		sem_pv[i].blocked_proc_num=0;
+	}
+}
 void initDevices(){
 	int i,j;
 	for(j=0;j<DEV_MUTEX_LEN;j++){
@@ -325,7 +351,6 @@ void initDevices(){
 	initDisk();
 	init_base_dev();
 }
-
 void init_base_dev(){
 	int i=0;
 	for(i=0;i<DEV_NUM;i++){
@@ -339,7 +364,6 @@ void init_base_dev(){
 
 	}
 }
-
 void initDiskBuffer(){
 	int i;
 	for(i=0;i<DEV_NUM;i++){
@@ -363,6 +387,25 @@ void initDisk(){
 		MAXCYL[i]=DATA1>>16;
 	}
 	initDiskBuffer();
+}
+void initSyscall(){
+	initDelay();
+	initDevices();
+}
+int getSemIndex(int *virsem){
+	int i;
+	for(i=0;i<MAXUPROC;i++){
+		if(virsem==sem_pv[i].vir_sem)
+			return i;
+	}
+	//non ha trovato il semaforo dentro la tabella, deve quindi essere inizializzata un'area vuota della tabella con il semaforo richiesto
+	for(i=0;i<MAXUPROC;i++){
+		if(sem_pv[i].blocked_proc_num<=0){
+			sem_pv[i].vir_sem=virsem;
+			return i;
+		}
+	}
+	return -1;
 }
 void setDeviceRegister(int IntlineNo , int DevNo,unsigned int STATUS,unsigned int COMMAND,unsigned int DATA0,unsigned int DATA1,int bitmap){
 	unsigned int *device;
@@ -486,3 +529,10 @@ void trasformSectNo(int diskNo, int *cyl_num, int *head_num, int *sect_num, int 
 	*head_num = sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) / MAXSECT[diskNo];
 	*sect_num = sectNo-*cyl_num-*head_num;		//oppure sectNo % (MAXHEAD[diskNo] * MAXSECT[diskNo]) % MAXSECT[diskNo];
 }
+int min(int a, int b){
+	if(a<=b)
+		return a;
+	else
+		return b;
+}
+

@@ -55,8 +55,11 @@ void p11(){
 	}
 	while(1){
 		int seg2=0x80000000;
+		int seg3=0xc0000000;
 		int *a=(int *)seg2+4*WS;
+		int *b=(int *)seg3+4*WS;
 		*a=5;
+		*b=6;
 		a_init3_debug[0]=activePcbs;
 		a_init3_debug[1]=softBlockedPcbs;
 		a_init3_debug[2]=tlb_mutex;
@@ -134,18 +137,15 @@ void disk_test2(){
 void init3(){
 	//while(1){}
 	//a_pippo();
-	initDevices();
+	initSyscall();
 	initNewOld();
 	initTlbHandler();
-	initDelay();
 	//initSegT(5);
-	int SEG2=0x40000000;
+	/*int SEG2=0x40000000;
 	int PAGE_SIZE=4096;
-	int *buffer;
+	int *buffer;*/
 	int pippo=0x27fc000;
 	*(int *)pippo=7;
-	int *pippo_t=&PAGE_SIZE+PAGE_SIZE;
-	buffer = (int *)(SEG2 + (10 * PAGE_SIZE));
 	if(activePcbs==0)
 		tprint("init3(1):activePcbs = 0\n");
 	SYSCALL(SPECHDL, SPECTLB, (memaddr)&new_old_state_t[0], (memaddr)&new_old_state_t[1]);

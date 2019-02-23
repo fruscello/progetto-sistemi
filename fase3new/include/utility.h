@@ -5,5 +5,6 @@
 
 void a_pippo();
 void stateCpy(state_t *out,state_t *in);
+//int min(int a, int b);
 
 #endif // MAIN_H

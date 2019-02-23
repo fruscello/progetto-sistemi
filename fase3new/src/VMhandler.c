@@ -15,33 +15,47 @@
 
 void initSegT(int ASID){
 	if ((ASID<8)&&(ASID>=0)){		//inizializzo la segment table per il processo
-		segT->entry[ASID].Kseg0=0;
+		segT->entry[ASID].Kseg0=&Kseg0;
 		segT->entry[ASID].Useg2=&(Useg2[ASID]);
 		segT->entry[ASID].Useg3=&Useg3;
 		
 		
 	}else{
-		segT->entry[stegTableTop].Kseg0=0;
+		segT->entry[stegTableTop].Kseg0=&Kseg0;
 		segT->entry[stegTableTop].Useg2=0;
 		segT->entry[stegTableTop].Useg3=&Useg3;
 		stegTableTop++;
 		
 	}
 }
-void initPTE(PTE* p,int segno,int vp,int ASID){
+void initPTE(PTE* p,int segno,int vpn,int ASID){
+	//int i;
+	//for(i=0;i<MAXPAGES;i++){
+		p->Hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vpn),segno);
+		if(segno==0)
+			p->Low=ENTRYLO_PFN_SET(0,vpn) | ENTRYLO_VALID | ENTRYLO_DIRTY | ENTRYLO_GLOBAL;
+		else if(segno==3)
+			p->Low=ENTRYLO_GLOBAL;
+		else
+			p->Low=0;
+	//}
+	
+}
+void initKPT(KPT* p){
 	int i;
-	for(i=0;i<MAXPAGES;i++){
-		p->Hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vp),segno);
+	for(i=0;i<KSEG0_PT_SIZE;i++){
+		int vp=ROMF_EXCVBASE+i*PAGESIZE;
+		initPTE(&(p->entry[i]),2,vp,0);
 	}
+	p->header=(PTE_MAGICNO<<24)|KSEG0_PT_SIZE;
 	
 }
 void initPT2(PT* p,int ASID){
 	int i;
 	for(i=0;i<MAXPAGES;i++){
-		int vp=i*FRAMESIZE;
-		//p->entry[i].Hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vp),segno);
+		int vp=i*PAGESIZE;
 		initPTE(&(p->entry[i]),2,vp,ASID);
-		p->entry[i].Low=0;
+		
 	}
 	p->header=(PTE_MAGICNO<<24)|MAXPAGES;
 	
@@ -49,10 +63,8 @@ void initPT2(PT* p,int ASID){
 void initPT3(PT* p){
 	int i;
 	for(i=0;i<MAXPAGES;i++){
-		int vp=i*FRAMESIZE;
-		//p->entry[i].Hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vp),segno);
+		int vp=i*PAGESIZE;
 		initPTE(&(p->entry[i]),3,vp,0);
-		p->entry[i].Low=0|ENTRYLO_GLOBAL;
 	}
 	p->header=(PTE_MAGICNO<<24)|MAXPAGES;
 	
@@ -77,6 +89,8 @@ void initTlbHandler(){
 	old_array_top=0;
 	segT=(segTable *)SEGTABLE_START;		//inizializzo il segment table
 	//Useg3.header=PTE_MAGICNO<<24;		//metto il magic number, il EntryCNT rimane a 0
+	
+	initKPT(&Kseg0);
 	int i;
 	for(i=0;i<8;i++){			//inizializzo staticamente i primi 8 ASID come gli 8 processi utente
 			
@@ -92,9 +106,10 @@ void initTlbHandler(){
 }
 void findPTE(PTE** pte,int segno,int vpn, int ASID){
 	PT *p;
+	KPT *kp;
 	switch(segno){
 		case 0:
-			p=segT->entry[ASID].Kseg0;
+			kp=segT->entry[ASID].Kseg0;
 			break;
 		case 2:
 			p=segT->entry[ASID].Useg2;
@@ -103,7 +118,10 @@ void findPTE(PTE** pte,int segno,int vpn, int ASID){
 			p=segT->entry[ASID].Useg3;
 			break;
 	}
-	*pte=&(p->entry[vpn]);
+	if(segno==0)		
+		*pte=&(kp->entry[vpn]);
+	else
+		*pte=&(p->entry[vpn]);
 }
 void setInvalid(int segno,int vpn, int ASID){
 	/*PT* p;
@@ -161,7 +179,7 @@ void updateTLB(int segno,int vpn, int ASID){		//aggiorno il tlb con i nuovi valo
 	a_debug[5]=ENTRYHI_ASID_GET(pte->Hi);
 	if(resolving_segno==0) tprint("resolving_segno == 0(updateTLB, in VM)\n");
 	tprint("sto modificando l'indice(updateTLB)\n");
-	TLBWR();
+	//TLBWR();
 	TLBWI_next();
 	//a_pippo();
 	
@@ -181,10 +199,27 @@ int chuckIfPresent(int segno,int vpn, int ASID){
 		setTLB_Index(index);
 		TLBR();
 		int hi=getEntryHi();
+		int low=getEntryLo();
+		int segno_tlb = ENTRYHI_SEGNO_GET(hi);
+		int vpn_tlb = ENTRYHI_VPN_GET(hi);
+		int ASID_tlb = ENTRYHI_ASID_GET(hi);
+		if((segno_tlb==segno)&&(vpn_tlb==vpn)&&(low&ENTRYLO_VALID)){
+			/*if(segno==0){
+				hi=ENTRYHI_ASID_SET(hi,ASID);
+				setEntryHi(hi);
+				TLBWI();
+				return 1;
+			}else */if(low&ENTRYLO_GLOBAL)
+				return 1;
+			else if(ASID_tlb==ASID)
+				return 1;
+		}
+		
 		a_debug[i]=hi;
 		i++;
 		//a_pippo();
 	}
+	return 0;	//se non ha trovato una pagina adatta nel tlb, allora restituisce false
 	//a_pippo();
 }
 void tlbHighHandler(){
@@ -201,9 +236,9 @@ void tlbHighHandler(){
 		if(old_array_top==old_array_head)
 			tprint("errore, coda tlb piena!!!\n");
 		
-		tprint("prima SEMP (tlb handler)\n");
+		//tprint("prima SEMP (tlb handler)\n");
 		SYSCALL(SEMP, (int)&tlb_mutex, 0, 0);
-		tprint("dopo SEMP (tlb handler)\n");
+		//tprint("dopo SEMP (tlb handler)\n");
 		
 		current_old=old_array[old_array_head];		//si poteva evitare di usare un'altra variabile, ma cosi e' piu chiaro
 		old_array_head=(old_array_head+1)%MAXUPROC;
@@ -211,58 +246,71 @@ void tlbHighHandler(){
 		int segno=ENTRYHI_SEGNO_GET(current_old.CP15_EntryHi);
 		int vpn=ENTRYHI_VPN_GET(current_old.CP15_EntryHi);
 		int ASID=ENTRYHI_ASID_GET(current_old.CP15_EntryHi);
-		chuckIfPresent(segno,vpn,ASID);
-		if(segno==0){
-			int hi,low;
-			hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vpn),segno);
-			low=ENTRYLO_PFN_SET(0,vpn)|ENTRYLO_DIRTY|ENTRYLO_VALID;
-			setEntryHi(hi);
-			setEntryLo(low);
-			//TLBWR();
-			TLBWI_next();
-			//TLBWI();
-			//se la v fa andare un altro processo, non fara' mai schedule(&current_old), ma carichera' direttamente lo stato giusto
-			V(&tlb_mutex,&(runningPcb->p_s));		
-			schedule(&current_old);
-			//ferma l'esecuzione e fa andare di nuovo il pcb corrente
-		}
-		requesting_tlb=runningPcb;
-		
-		
-		a_debug[0]=segno;
-		a_debug[1]=vpn;
-		a_debug[2]=ASID;
-		resolving_ASID=ASID;
-		resolving_vpn=vpn;
-		resolving_segno=segno;
-		/*state_t s;				//per verificare che gli interrupt siano gia disabilitati
-		STST(&s);
-		a_debug[0]=s.cpsr;
-		a_debug[1]=STATUS_ALL_INT_ENABLE(s.cpsr);
-		a_debug[2]=STATUS_ALL_INT_DISABLE(s.cpsr);
-		a_pippo();*/
-		
-		//ATTENZIONE	verifica se la pagina manca ancora
-		//ATTENZIONE	disabilita gli interrupt!!! (sembrerebbero gia disabilitati)
-		tlb_step=2;
-		if(pagePool[next_page_pool]&1){			//mi chiesto se la pagina sta venendo utilizzata
-			tprint("SI pagePool[next_page_pool]&1 (tlb handler)\n");
-			setInvalid( segno, ENTRYHI_VPN_GET(pagePool[next_page_pool]), ENTRYHI_SEGNO_GET(pagePool[next_page_pool]) );
-			TLBCLR();
-			SYSCALL(DISK_PUT, RAM_TOP - 2*PAGESIZE-next_page_pool*PAGESIZE, 0, /*ASID*MAXPAGES+vpn*/0);		//rimetto la pagina su disco
+		if(!chuckIfPresent(segno,vpn,ASID)){
+			if(segno==0){
+				int hi,low;
+				hi=ENTRYHI_SEGNO_SET(ENTRYHI_VPN_SET(ENTRYHI_ASID_SET(0,ASID),vpn),segno);
+				low=ENTRYLO_PFN_SET(0,vpn)|ENTRYLO_DIRTY|ENTRYLO_VALID;
+				setEntryHi(hi);
+				setEntryLo(low);
+				//TLBWR();
+				TLBWI_next();
+				//TLBWI();
+				//se la v fa andare un altro processo, non fara' mai schedule(&current_old), ma carichera' direttamente lo stato giusto
+				V(&tlb_mutex,&(runningPcb->p_s));		
+				schedule(&current_old);
+				//ferma l'esecuzione e fa andare di nuovo il pcb corrente
+			}
+			requesting_tlb=runningPcb;
 			
 			
+			a_debug[0]=segno;
+			a_debug[1]=vpn;
+			a_debug[2]=ASID;
+			resolving_ASID=ASID;
+			resolving_vpn=vpn;
+			resolving_segno=segno;
+			/*state_t s;				//per verificare che gli interrupt siano gia disabilitati
+			STST(&s);
+			a_debug[0]=s.cpsr;
+			a_debug[1]=STATUS_ALL_INT_ENABLE(s.cpsr);
+			a_debug[2]=STATUS_ALL_INT_DISABLE(s.cpsr);
+			a_pippo();*/
+			
+			
+			//ATTENZIONE	disabilita gli interrupt!!! (sembrerebbero gia disabilitati)
+			
+			PTE *p;
+			findPTE(&p,segno,vpn,ASID);
+			if(p->Low&ENTRYLO_VALID){		//se la pagina e' gia valida la carichi solo nel tlb
+				tprint("pagina gia' valida! (tlbHandler)\n");
+				updateTLB(segno,vpn,ASID);
+			}else{
+			
+				if(pagePool[next_page_pool]&1){			//mi chiesto se la pagina sta venendo utilizzata
+					tprint("SI pagePool[next_page_pool]&1 (tlb handler)\n");
+					setInvalid( segno, ENTRYHI_VPN_GET(pagePool[next_page_pool]), ENTRYHI_SEGNO_GET(pagePool[next_page_pool]) );
+					TLBCLR();
+					SYSCALL(DISK_PUT, RAM_TOP - 2*PAGESIZE-next_page_pool*PAGESIZE, 0, /*ASID*MAXPAGES+vpn*/0);		//rimetto la pagina su disco
+					
+					
+				}else{
+					tprint("NO pagePool[next_page_pool]&1 (tlb handler)\n");
+					//tlbNextStep();
+					
+				}
+				SYSCALL(DISK_GET, RAM_TOP - 2*FRAMESIZE*WS-next_page_pool*FRAMESIZE*WS, 0, /*ASID*MAXPAGES+vpn*/0);		//da sistemare il caso di memoria globlale
+				tprint("dopo diskget(tlbhandler)\n");
+				setValid(resolving_segno,resolving_vpn,resolving_ASID);			//aggiorno le PTE e le strutture per la gestione del page pool
+				updateTLB(resolving_segno,resolving_vpn,resolving_ASID);
+				next_page_pool=(next_page_pool+1)%PAGE_POOL_SIZE;
+			}
 		}else{
-			tprint("NO pagePool[next_page_pool]&1 (tlb handler)\n");
-			//tlbNextStep();
-			
+			a_debug[0]=segno;
+			a_debug[1]=vpn;
+			a_debug[2]=ASID;
+			//a_pippo();
 		}
-		SYSCALL(DISK_GET, RAM_TOP - 2*FRAMESIZE*WS-next_page_pool*FRAMESIZE*WS, 0, /*ASID*MAXPAGES+vpn*/0);		//da sistemare il caso di memoria globlale
-		tprint("dopo diskget(tlbhandler)\n");
-		setValid(resolving_segno,resolving_vpn,resolving_ASID);			//aggiorno le PTE e le strutture per la gestione del page pool
-		updateTLB(resolving_segno,resolving_vpn,resolving_ASID);
-		next_page_pool=(next_page_pool+1)%PAGE_POOL_SIZE;
-		
 		V(&tlb_mutex,&(requesting_tlb->p_s));
 		//requesting_tlb->p_s=current_old;
 		tprint("faccio lo scheduling\n");

@@ -73,6 +73,13 @@ typedef struct dev_param{
 	state_t old_state;
 }dev_param;
 
+typedef struct {
+	int *vir_sem;		//semaforo virtuale su cui i processi devono essere indirettamente bloccati
+	int sem;		//semaforo su cui bloccare i processi bloccati
+	int blocked_proc_num;
+	
+}sem_struct;
+
 //per il disco 0 non c'e' buffer, e' gestito separatamente, quindi ne basterebbero DEV_NUM-1 non servirebbe, ma lo tengo per semplicita'
 buffer disk_buffer[DEV_NUM];
 
@@ -81,8 +88,12 @@ dev_param ptr_addr[DEV_NUM];
 
 delay_blocked delay_table[MAXUPROC];
 state_t state_to_unblock;
+state_t sys_ret_state[MAXUPROC];		//ogni uproc ha il suo "indirizzo di ritorno", alla posizione del suo ASID
 
 int a_sys_debug[10];
+
+
+sem_struct sem_pv[MAXUPROC];		//struttura per la gestione delle syscall P e V
 
 int getDEV(int class);
 void readTerminal(char *virtAddr);
@@ -109,12 +120,14 @@ void delayBlock(int secCnt, state_t *state);
 void delayUnblock(int to_unblock);
 int getFirstDelayTableFree();
 void initDelay();
-
+void initSem();
 void initDevices();
 void init_base_dev();
 
 void initDiskBuffer();
 void initDisk();
+void initSyscall();
+int getSemIndex(int *virsem);
 void setDeviceRegister(int IntlineNo , int DevNo,unsigned int STATUS,unsigned int COMMAND,unsigned int DATA0,unsigned int DATA1,int bitmap);
 void getDeviceStatus(int IntlineNo , int DevNo, int* STATUS);
 void getDeviceData1(int IntlineNo , int DevNo, int* DATA1);
@@ -123,4 +136,5 @@ void diskNextStep(int deviceNo);
 void softBlock(pcb_t *pcb);
 void unsoftblock(pcb_t *p);
 void trasformSectNo(int diskNo, int *cyl_num, int *head_num, int *sect_num, int sectNo);
+int min(int a, int b);
 #endif
